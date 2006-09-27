@@ -18,11 +18,8 @@
 #include <stdio.h>
 #include <errno.h>
 
-
 #include <time.h>
-#include <unistd.h>
 #include <sys/time.h>
-
 
 CMTComm mtcomm;
 int portNumber;
@@ -89,48 +86,20 @@ fflush(fd);
 
 
 /*! 
-  @brief Procédure qui initialise une structure de données de temps
-
-  @param struct timeval *timev : structure de temps à modifier
-*/
-void getHorodatage(struct timeval *timev)
-{
-  
-  // obsolete en 2038 !! je serai encore la ??
-  if(gettimeofday(timev, NULL) !=0)
-    {
-      perror("gettimeofday");
-
-      exit(EXIT_FAILURE);
-    }
-}
-
-/*! 
   @brief Affiche le contenu d'une structure de données sous forme ASCII
 
   @param struct timeval timev : affiche le contenu
 */
 void printHorodatage(char *msg)
-{
-  struct tm* ptm;
-  char time_string[40];
-  long milliseconds;
-  struct timeval timev;
-     
-  // System time
-  getHorodatage(&timev);
+{    
+  struct timespec Timespec;
 
-  ptm = localtime (&timev.tv_sec);
+  clock_gettime(CLOCK_REALTIME,&Timespec);
 
-  /* Compute milliseconds from microseconds. */
-  milliseconds = timev.tv_usec / 1000;
-  
-  /* Format the date and time, down to a single second. */
-  strftime (time_string, sizeof (time_string), "%Y-%m-%d %H:%M:%S", ptm);
-  
+ 
   /* Print the formatted time, in seconds, followed by a decimal point
      and the milliseconds. */
-  sprintf (msg,"%s.%03ld", time_string, milliseconds);
+  sprintf (msg,"%d.%ld", Timespec.tv_sec, Timespec.tv_nsec);
 }
 
 
@@ -287,8 +256,17 @@ int main(int argc, char *argv[])
 
       if(doMtSettings() == false)
 	return MTRV_UNEXPECTEDMSG;
-
-      printf("Calibrated sensor data\n");
+       
+      // output format logged into log file if needed
+      if(verbose == 1 || logFile != NULL)
+	{
+	  memset(msg, 0, 50);
+	  sprintf(msg,"MTI Calibrated sensor data - LAAS/CNRS 2006\n");
+	  logTrame(fdLog, verbose, msg);
+	  memset(msg, 0, 50);
+	  sprintf(msg,"ACCX ACCY ACCZ\nGYRX GYRY GYRZ\nMAGNX MAGNY MAGNZ\nEulerX EulerY EulerZ\n");			   
+	  logTrame(fdLog, verbose, msg);
+	}
 	
       while(mtcomm.readDataMessage(data, datalen) == MTRV_OK )
 	{
@@ -314,7 +292,7 @@ int main(int argc, char *argv[])
 		      if(verbose == 1 || logFile != NULL)
 			{
 			  memset(msg, 0, 50);
-			  sprintf(msg,"%s ACCX:%g ACCY:%g ACCZ:%g", msgHorodatage, fdata[0], fdata[1], fdata[2]);			   
+			  sprintf(msg,"ACC %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);			   
 			  logTrame(fdLog, verbose, msg);
 			}
 			
@@ -325,7 +303,7 @@ int main(int argc, char *argv[])
 		      if(verbose == 1 || logFile != NULL)
 			{
 			  memset(msg, 0, 50);
-			  sprintf(msg,"%s GYRX:%g GYRY:%g GYRZ:%g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
+			  sprintf(msg,"GYR %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
 			  logTrame(fdLog, verbose, msg);
 			}
 			
@@ -337,7 +315,7 @@ int main(int argc, char *argv[])
 		      if(verbose == 1 || logFile != NULL)
 			{
 			  memset(msg, 0, 50);
-			  sprintf(msg,"%s MAGNX:%g MAGNY:%g MAGNZ:%g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
+			  sprintf(msg,"MAGN %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
 			  logTrame(fdLog, verbose, msg);
 			}
 		    }
@@ -363,7 +341,7 @@ int main(int argc, char *argv[])
 			   if(verbose == 1 || logFile != NULL)
 			     {
 			       memset(msg, 0, 50);
-			       sprintf(msg,"%s EulerX:%g EulerY:%g EulerZ:%g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
+			       sprintf(msg,"Euler %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
 			       logTrame(fdLog, verbose, msg);
 			     }			  
 
