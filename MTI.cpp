@@ -72,15 +72,15 @@ void logTrame(FILE *fd, int modeVerbose, char *message)
     }
   // only verbose stdout
   else if(fd == NULL && modeVerbose == 1)
-   {
-     fprintf(stdout, "%s\n", message);
-   }
+    {
+      fprintf(stdout, "%s\n", message);
+    }
   // only log file
   else if(fd != NULL && modeVerbose == 0)
-   {
+    {
       fprintf(fd, "%s\n", message);      
-   }  
-fflush(fd);
+    }  
+  fflush(fd);
 }
 
 
@@ -95,10 +95,9 @@ void printHorodatage(char *msg)
   struct timespec Timespec;
 
   clock_gettime(CLOCK_REALTIME,&Timespec);
-
  
   /* Print the formatted time, in seconds, followed by a decimal point
-     and the milliseconds. */
+     and the ns. */
   sprintf (msg,"%ld.%ld", long(Timespec.tv_sec), Timespec.tv_nsec);
 }
 
@@ -198,10 +197,6 @@ int main(int argc, char *argv[])
   char msg[250];
   char msgHorodatage[100];
 
-  // Skip factor for writing data to screen, make screen seem a bit smoother
-  short screenSkipFactor = 10;
-  short screenSkipFactorCnt = screenSkipFactor;
-
   int  ch;
   char *prog = argv[0];
   static char *logFile=NULL;
@@ -234,9 +229,9 @@ int main(int argc, char *argv[])
     }
 
   // open log file
-   FILE *fdLog = NULL;
-   if(logFile != NULL)
-     fdLog = setLogData(logFile);
+  FILE *fdLog = NULL;
+  if(logFile != NULL)
+    fdLog = setLogData(logFile);
 
   // load user settings in inertial sensor
   getUserInputs(argv[0]);	
@@ -268,105 +263,115 @@ int main(int argc, char *argv[])
 	  logTrame(fdLog, verbose, msg);
 	}
 	
-      while(mtcomm.readDataMessage(data, datalen) == MTRV_OK )
+      while(1)
 	{
-	  mtcomm.getValue(VALUE_SAMPLECNT, samplecounter, data, BID_MASTER);
-		
-	  if (screenSkipFactorCnt++ == screenSkipFactor)
+	  if(mtcomm.readDataMessage(data, datalen) == MTRV_OK)
 	    {
-	      screenSkipFactorCnt = 0;
 
-	      for (int i = 0; i < numDevices; i++)
-		{				
-		  if ((outputMode & OUTPUTMODE_CALIB) != 0)
-		    {
-		      // Output Calibrated data
-		      mtcomm.getValue(VALUE_CALIB_ACC, fdata, data, BID_MT + i);
+	      mtcomm.getValue(VALUE_SAMPLECNT, samplecounter, data, BID_MASTER);      		 
+	 				
+	      if ((outputMode & OUTPUTMODE_CALIB) != 0)
+		{
+		  // Output Calibrated data
+		  mtcomm.getValue(VALUE_CALIB_ACC, fdata, data, BID_MT);
 
-		      printHorodatage(msgHorodatage);
+		  printHorodatage(msgHorodatage);
 
-		   /*   printf("ACCX:%6.2f\t  ACCY:%6.2f\t ACCX:%6.2f UNITY:(m/s^2)\n", fdata[0], 
-			     fdata[1], 
-			     fdata[2]); */
+		  /*   printf("ACCX:%6.2f\t  ACCY:%6.2f\t ACCX:%6.2f UNITY:(m/s^2)\n", fdata[0], 
+		       fdata[1], 
+		       fdata[2]); */
 		      
-		      if(verbose == 1 || logFile != NULL)
-			{
-			  memset(msg, 0, 50);
-			  sprintf(msg,"ACC %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);			   
-			  logTrame(fdLog, verbose, msg);
-			}
-			
-		      printHorodatage(msgHorodatage);
-		      mtcomm.getValue(VALUE_CALIB_GYR, fdata, data, BID_MT + i);
-		      /* printf("GYRX:%6.2f\t GYRY:%6.2f\t GYRZ:%6.2f  UNITY:(rad/s)\n", fdata[0], fdata[1], fdata[2]); */
-
-		      if(verbose == 1 || logFile != NULL)
-			{
-			  memset(msg, 0, 50);
-			  sprintf(msg,"GYR %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
-			  logTrame(fdLog, verbose, msg);
-			}
-			
-
-		      printHorodatage(msgHorodatage);
-		      mtcomm.getValue(VALUE_CALIB_MAG, fdata, data, BID_MT + i);
-		      /* printf("MAGX :%6.2f\t MAGY:%6.2f\t MAGZ:%6.2f  UNITY:(a.u.)\n", fdata[0], fdata[1], fdata[2]);	 */
-
-		      if(verbose == 1 || logFile != NULL)
-			{
-			  memset(msg, 0, 50);
-			  sprintf(msg,"MAGN %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
-			  logTrame(fdLog, verbose, msg);
-			}
-		    }
-
-		  if ((outputMode & OUTPUTMODE_ORIENT) != 0)
+		  if(verbose == 1 || logFile != NULL)
 		    {
-		      switch(outputSettings & OUTPUTSETTINGS_ORIENTMODE_MASK)
-			{
-			case OUTPUTSETTINGS_ORIENTMODE_QUATERNION:
-			  // Output: quaternion
-			  mtcomm.getValue(VALUE_ORIENT_QUAT, fdata, data, BID_MT + i);
-			  printf("%6.3f\t%6.3f\t%6.3f\t%6.3f\n",
-				 fdata[0],
-				 fdata[1], 
-				 fdata[2], 
-				 fdata[3]); 
-			  break;
-			case OUTPUTSETTINGS_ORIENTMODE_EULER:
-			  // Output: Euler
-			  printHorodatage(msgHorodatage);
-			  mtcomm.getValue(VALUE_ORIENT_EULER, fdata, data, BID_MT + i);		
-
-			   if(verbose == 1 || logFile != NULL)
-			     {
-			       memset(msg, 0, 50);
-			       sprintf(msg,"Euler %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
-			       logTrame(fdLog, verbose, msg);
-			     }			  
-
-			  break;
-			case OUTPUTSETTINGS_ORIENTMODE_MATRIX:
-			  // Output: Cosine Matrix
-			  mtcomm.getValue(VALUE_ORIENT_MATRIX, fdata, data, BID_MT + i);
-			  printf("%6.3f\t%6.3f\t%6.3f\n",fdata[0], 
-				 fdata[1], 
-				 fdata[2]);
-			  printf("%6.3f\t%6.3f\t%6.3f\n",fdata[3],
-				 fdata[4], 
-				 fdata[5]);
-			  printf("%6.3f\t%6.3f\t%6.3f\n",fdata[6], 
-				 fdata[7], 
-				 fdata[8]);
-			  break;
-			default:
-			  ;
-			}
+		      memset(msg, 0, 50);
+		      sprintf(msg,"ACC %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);			   
+		      logTrame(fdLog, verbose, msg);
 		    }
+			
+		  printHorodatage(msgHorodatage);
+		  mtcomm.getValue(VALUE_CALIB_GYR, fdata, data, BID_MT);
+		  /* printf("GYRX:%6.2f\t GYRY:%6.2f\t GYRZ:%6.2f  UNITY:(rad/s)\n", fdata[0], fdata[1], fdata[2]); */
+
+		  if(verbose == 1 || logFile != NULL)
+		    {
+		      memset(msg, 0, 50);
+		      sprintf(msg,"GYR %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
+		      logTrame(fdLog, verbose, msg);
+		    }
+			
+
+		  printHorodatage(msgHorodatage);
+		  mtcomm.getValue(VALUE_CALIB_MAG, fdata, data, BID_MT);
+		  /* printf("MAGX :%6.2f\t MAGY:%6.2f\t MAGZ:%6.2f  UNITY:(a.u.)\n", fdata[0], fdata[1], fdata[2]);	 */
+
+		  if(verbose == 1 || logFile != NULL)
+		    {
+		      memset(msg, 0, 50);
+		      sprintf(msg,"MAGN %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
+		      logTrame(fdLog, verbose, msg);
+		    }
+		}//endif
+
+	      if ((outputMode & OUTPUTMODE_ORIENT) != 0)
+		{
+		  switch(outputSettings & OUTPUTSETTINGS_ORIENTMODE_MASK)
+		    {
+		    case OUTPUTSETTINGS_ORIENTMODE_QUATERNION:
+		      // Output: quaternion
+		      mtcomm.getValue(VALUE_ORIENT_QUAT, fdata, data, BID_MT);
+		      printf("%6.3f\t%6.3f\t%6.3f\t%6.3f\n",
+			     fdata[0],
+			     fdata[1], 
+			     fdata[2], 
+			     fdata[3]); 
+		      break;
+		    case OUTPUTSETTINGS_ORIENTMODE_EULER:
+		      // Output: Euler
+		      printHorodatage(msgHorodatage);
+		      mtcomm.getValue(VALUE_ORIENT_EULER, fdata, data, BID_MT);		
+
+		      if(verbose == 1 || logFile != NULL)
+			{
+			  memset(msg, 0, 50);
+			  sprintf(msg,"Euler %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
+			  logTrame(fdLog, verbose, msg);
+			}			  
+
+		      break;
+		    case OUTPUTSETTINGS_ORIENTMODE_MATRIX:
+		      // Output: Cosine Matrix
+		      mtcomm.getValue(VALUE_ORIENT_MATRIX, fdata, data, BID_MT);
+		      printf("%6.3f\t%6.3f\t%6.3f\n",fdata[0], 
+			     fdata[1], 
+			     fdata[2]);
+		      printf("%6.3f\t%6.3f\t%6.3f\n",fdata[3],
+			     fdata[4], 
+			     fdata[5]);
+		      printf("%6.3f\t%6.3f\t%6.3f\n",fdata[6], 
+			     fdata[7], 
+			     fdata[8]);
+		      break;
+		    default:
+		      ;
+		    }// end switch
+		} // endif	
+	    } //endif check read data
+	  else // display error on read buffer
+	    {
+	      if(verbose == 1 || logFile != NULL)
+		{
+		  memset(msg, 0, 50);	
+		  sprintf(msg, "failed to read message, code (%d)\n", mtcomm.getLastRetVal());
+		  logTrame(fdLog, verbose, msg);
 		}
+	      else
+		fprintf(stderr, "MTI failed to read message, code (%d)\n", mtcomm.getLastRetVal());
 	    }
-	}
+
+	}// end while
+
       // if data logged then, close fd
+
       if(fdLog != NULL)
 	{	
 	  fclose(fdLog);
