@@ -86,7 +86,7 @@ void logTrame(FILE *fd, int modeVerbose, char *message)
 
 
 /*! 
-  @brief Affiche le contenu d'une structure de données sous forme ASCII
+  @brief
 
   @param struct timeval timev : affiche le contenu
 */
@@ -267,7 +267,6 @@ int main(int argc, char *argv[])
 	{
 	  if(mtcomm.readDataMessage(data, datalen) == MTRV_OK)
 	    {
-
 	      mtcomm.getValue(VALUE_SAMPLECNT, samplecounter, data, BID_MASTER);      		 
 	 				
 	      if ((outputMode & OUTPUTMODE_CALIB) != 0)
