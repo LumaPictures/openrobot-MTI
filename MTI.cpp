@@ -259,7 +259,7 @@ int main(int argc, char *argv[])
 	  sprintf(msg,"MTI Calibrated sensor data - LAAS/CNRS 2006\n");
 	  logTrame(fdLog, verbose, msg);
 	  memset(msg, 0, 50);
-	  sprintf(msg,"ACCX ACCY ACCZ\nGYRX GYRY GYRZ\nMAGNX MAGNY MAGNZ\nEulerX EulerY EulerZ\n");			   
+	  sprintf(msg,"ACCX ACCY ACCZ : unity m/s2 \nGYRX GYRY GYRZ : unity rad/s\nMAGNX MAGNY MAGNZ : arbitrary units normalized to earth field strength\nEulerX EulerY EulerZ : unity degree\n");			   
 	  logTrame(fdLog, verbose, msg);
 	}
 	
@@ -267,18 +267,15 @@ int main(int argc, char *argv[])
 	{
 	  if(mtcomm.readDataMessage(data, datalen) == MTRV_OK)
 	    {
+	      // get real time clock
+	      printHorodatage(msgHorodatage);
+
 	      mtcomm.getValue(VALUE_SAMPLECNT, samplecounter, data, BID_MASTER);      		 
 	 				
 	      if ((outputMode & OUTPUTMODE_CALIB) != 0)
 		{
 		  // Output Calibrated data
-		  mtcomm.getValue(VALUE_CALIB_ACC, fdata, data, BID_MT);
-
-		  printHorodatage(msgHorodatage);
-
-		  /*   printf("ACCX:%6.2f\t  ACCY:%6.2f\t ACCX:%6.2f UNITY:(m/s^2)\n", fdata[0], 
-		       fdata[1], 
-		       fdata[2]); */
+		  mtcomm.getValue(VALUE_CALIB_ACC, fdata, data, BID_MT);	
 		      
 		  if(verbose == 1 || logFile != NULL)
 		    {
@@ -286,10 +283,8 @@ int main(int argc, char *argv[])
 		      sprintf(msg,"ACC %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);			   
 		      logTrame(fdLog, verbose, msg);
 		    }
-			
-		  printHorodatage(msgHorodatage);
-		  mtcomm.getValue(VALUE_CALIB_GYR, fdata, data, BID_MT);
-		  /* printf("GYRX:%6.2f\t GYRY:%6.2f\t GYRZ:%6.2f  UNITY:(rad/s)\n", fdata[0], fdata[1], fdata[2]); */
+					
+		  mtcomm.getValue(VALUE_CALIB_GYR, fdata, data, BID_MT);		 
 
 		  if(verbose == 1 || logFile != NULL)
 		    {
@@ -297,11 +292,8 @@ int main(int argc, char *argv[])
 		      sprintf(msg,"GYR %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
 		      logTrame(fdLog, verbose, msg);
 		    }
-			
-
-		  printHorodatage(msgHorodatage);
-		  mtcomm.getValue(VALUE_CALIB_MAG, fdata, data, BID_MT);
-		  /* printf("MAGX :%6.2f\t MAGY:%6.2f\t MAGZ:%6.2f  UNITY:(a.u.)\n", fdata[0], fdata[1], fdata[2]);	 */
+					 
+		  mtcomm.getValue(VALUE_CALIB_MAG, fdata, data, BID_MT);		
 
 		  if(verbose == 1 || logFile != NULL)
 		    {
