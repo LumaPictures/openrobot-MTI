@@ -358,7 +358,6 @@ int main(int argc, char *argv[])
 	      else
 		fprintf(stderr, "MTI failed to read message, code (%d)\n", mtcomm.getLastRetVal());
 	    }
-
 	}// end while
 
       // if data logged then, close fd

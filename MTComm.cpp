@@ -271,7 +271,7 @@ short CMTComm::openPort(const int portNumber, const unsigned long baudrate, cons
 	options.c_oflag &= ~OPOST;
 	// Timeout 0.005 sec for first byte, read minimum of 0 bytes
 	options.c_cc[VMIN]     = 0;
-	options.c_cc[VTIME]    = 5;
+	options.c_cc[VTIME]    = 1; // modif october 4th 2006, previously VTIME = 5
 
 	// Set the new options for the port
 	tcsetattr(m_handle,TCSANOW, &options);
