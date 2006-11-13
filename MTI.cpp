@@ -98,7 +98,7 @@ void printHorodatage(char *msg)
  
   /* Print the formatted time, in seconds, followed by a decimal point
      and the ns. */
-  sprintf (msg,"%ld.%ld", long(Timespec.tv_sec), Timespec.tv_nsec);
+  sprintf (msg,"%.6f", Timespec.tv_sec + (1E-9 * Timespec.tv_nsec));
 }
 
 
