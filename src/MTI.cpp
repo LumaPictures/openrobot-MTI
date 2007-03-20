@@ -14,12 +14,15 @@
 
 #include <stdlib.h>
 
+#include "MTI.h"
 #include "MTComm.h"
+
 #include <stdio.h>
 #include <errno.h>
 
 #include <time.h>
 #include <sys/time.h>
+
 
 CMTComm mtcomm;
 int portNumber;
@@ -355,8 +358,6 @@ int initInertialSensor(int mode, char *device)
     }
 
 
-
-
 /*!
   @brief : main
 */
@@ -551,3 +552,5 @@ int startMTI(int argc, char *argv[])
 
       return MTRV_OK;
     }
+
+
