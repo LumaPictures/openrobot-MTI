@@ -11,8 +11,7 @@
 #include <stdio.h>
 
 
-
-int initInertialSensor(int mode, char *device);
+int initInertialSensor();
 
 FILE* setLogData(char *_fileName);
 
@@ -20,7 +19,7 @@ void logTrame(FILE *fd, int modeVerbose, char *message);
 
 void printHorodatage(char *msg);
 
-void getUserInputs(char *device, int mode);
+void getUserInputs( char *device, int mode, int outputDisplay);
 
 int doMtSettings(void);
 

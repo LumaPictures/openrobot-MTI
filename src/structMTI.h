@@ -9,7 +9,16 @@ typedef struct INERTIAL_INIT
 {
   
   char device[24]; // dev/ttyS0 par exemple
-  int mode; // Euler, Matrix, Quaternion
+
+// 1 - Calibrated data
+// 2 - Orientation data\n");
+// 3 - Both Calibrated and Orientation data\n
+  int mode;
+
+// 1 - Quaternions
+// 2 - Euler angles
+// 3 - Matrix
+  int outputMode; 
   
   float ACC[4];
   float GYR[4];

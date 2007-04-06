@@ -38,7 +38,7 @@ int screenSensorOffset = 0;
 */
 static void usage(const char *progname)
 {
-  fprintf(stderr, "usage: %s [-v] serial_device [-l] logFile\n", progname);
+  fprintf(stderr, "usage: %s [-v] serial_device [-l] logFile [-o] mode [-d] mode display\n", progname);
   exit(1);
 }
 
@@ -110,7 +110,7 @@ void printHorodatage(char *msg)
   @brief : user setting
 */
 
-void getUserInputs(char *device, int mode)
+void getUserInputs(char *device, int mode, int outputDisplay)
 {
 #ifdef WIN32
   printf("Enter COM port: ");
@@ -119,17 +119,36 @@ void getUserInputs(char *device, int mode)
   strcpy(deviceName, device);
 #endif
 	
-  // outputMode = 3;
-  
-  outputMode = mode;
 
-  // Update outputMode to match data specs of SetOutputMode
-  outputMode <<= 1;
+// mode :
+// 1 - Calibrated data
+// 2 - Orientation data\n");
+// 3 - Both Calibrated and Orientation data\n
 
-  outputSettings = OUTPUTSETTINGS_ORIENTMODE_EULER;
+ outputMode = mode;
 
-  // outputSettings = OUTPUTSETTINGS_ORIENTMODE_QUATERNION;
-  // outputSettings =  OUTPUTSETTINGS_ORIENTMODE_MATRIX;
+// outputDisplay :
+// 1 - Quaternions
+// 2 - Euler angles
+// 3 - Matrix
+
+// Update outputMode to match data specs of SetOutputMode
+outputMode <<= 1;
+
+  switch(outputDisplay) {
+	case 1:
+		outputSettings = OUTPUTSETTINGS_ORIENTMODE_QUATERNION;
+		printf("angle quaternion\n"); 
+		break;
+	case 2:
+		outputSettings = OUTPUTSETTINGS_ORIENTMODE_EULER;
+		 printf("angle euler\n"); 
+		break;
+	case 3:
+		outputSettings = OUTPUTSETTINGS_ORIENTMODE_MATRIX;
+ 		printf("angle matrix\n"); 
+		break;
+	}
 
   outputSettings |= OUTPUTSETTINGS_TIMESTAMP_SAMPLECNT;
 }
@@ -186,14 +205,13 @@ int doMtSettings(void)
 }
 
 
-
 /*! 
   @brief Initialisation de la centrale par un programme externe - > module Genome
   
 
  @param 
 */
-int initInertialSensor(int mode, char *device)
+int initInertialSensor()
 { 
   unsigned char data[MAXMSGLEN];
   short datalen;
@@ -209,7 +227,7 @@ int initInertialSensor(int mode, char *device)
 
 
   // load user settings in inertial sensor
-  getUserInputs(device, mode);	
+  //getUserInputs(device, mode, outputDisplay);	
 
   // Open and initialize serial port
 #ifdef WIN32
@@ -230,7 +248,7 @@ int initInertialSensor(int mode, char *device)
       // output format logged into log file if needed
       
       memset(msg, 0, 50);
-      sprintf(msg,"MTI Calibrated sensor data - LAAS/CNRS 2006\n");
+      sprintf(msg,"MTI Calibrated sensor data - LAAS/CNRS 2007\n");
       logTrame(fdLog, verbose, msg);
       memset(msg, 0, 50);
       sprintf(msg,"ACCX ACCY ACCZ : unity m/s2 \nGYRX GYRY GYRZ : unity rad/s\nMAGNX MAGNY MAGNZ :\
@@ -359,7 +377,7 @@ int initInertialSensor(int mode, char *device)
 
 
 /*!
-  @brief : main
+  @brief : main API
 */
 int startMTI(int argc, char *argv[]) 
 {
@@ -377,16 +395,35 @@ int startMTI(int argc, char *argv[])
   static char *logFile=NULL;
   int verbose = 0;
 
-  printf("*****> mode2\n");
+ int displayDataOutputFormat=0;
+ int _outputMode=0;
+
+ printf("API inertial sensor - LAAS CNRS 2007\n");
 
 		
-  while ((ch = getopt(argc, argv, "vl:")) != -1)
+  while ((ch = getopt(argc, argv, "vd:o:l:")) != -1)
     {
       switch (ch)
 	{
 	case 'l':
 	  logFile = optarg;	    
 	  break;
+
+	case 'd':// d : display data output format  : 	
+		// 1 - Calibrated data
+		// 2 - Orientation data
+		// 3 - Both Calibrated and Orientation data
+	    	displayDataOutputFormat = atoi(optarg);		
+		break;
+	break;
+
+	case 'o':// o : output mode :
+		// 1 - Quaternions
+		// 2 - Euler angles
+		// 3 - Matrix
+		
+		_outputMode = atoi(optarg);
+		break;
 
 	case 'v':
 	  verbose = 1;
@@ -413,7 +450,7 @@ int startMTI(int argc, char *argv[])
     fdLog = setLogData(logFile);
 
   // load user settings in inertial sensor
-  getUserInputs(argv[0], 3);	
+  getUserInputs(argv[0], _outputMode, displayDataOutputFormat);	
 
   // Open and initialize serial port
 #ifdef WIN32
@@ -490,15 +527,16 @@ int startMTI(int argc, char *argv[])
 		    case OUTPUTSETTINGS_ORIENTMODE_QUATERNION:
 		      // Output: quaternion
 		      mtcomm.getValue(VALUE_ORIENT_QUAT, fdata, data, BID_MT);
-		      printf("%6.3f\t%6.3f\t%6.3f\t%6.3f\n",
-			     fdata[0],
-			     fdata[1], 
-			     fdata[2], 
-			     fdata[3]); 
+
+			if(verbose == 1 || logFile != NULL)
+		    	{
+		         memset(msg, 0, 50);
+		         sprintf(msg,"Quaternion %s %6.3f\t%6.3f\t%6.3f\t%6.3f", msgHorodatage, fdata[0], fdata[1], fdata[2], fdata[3]);
+		         logTrame(fdLog, verbose, msg);
+		    	}
 		      break;
 		    case OUTPUTSETTINGS_ORIENTMODE_EULER:
-		      // Output: Euler
-		      printHorodatage(msgHorodatage);
+		      // Output: Euler		      
 		      mtcomm.getValue(VALUE_ORIENT_EULER, fdata, data, BID_MT);		
 
 		      if(verbose == 1 || logFile != NULL)
@@ -511,16 +549,22 @@ int startMTI(int argc, char *argv[])
 		      break;
 		    case OUTPUTSETTINGS_ORIENTMODE_MATRIX:
 		      // Output: Cosine Matrix
-		      mtcomm.getValue(VALUE_ORIENT_MATRIX, fdata, data, BID_MT);
-		      printf("%6.3f\t%6.3f\t%6.3f\n",fdata[0], 
-			     fdata[1], 
-			     fdata[2]);
-		      printf("%6.3f\t%6.3f\t%6.3f\n",fdata[3],
-			     fdata[4], 
-			     fdata[5]);
-		      printf("%6.3f\t%6.3f\t%6.3f\n",fdata[6], 
-			     fdata[7], 
-			     fdata[8]);
+			mtcomm.getValue(VALUE_ORIENT_MATRIX, fdata, data, BID_MT);
+			
+			if(verbose == 1 || logFile != NULL)
+		    	{
+		         memset(msg, 0, 50);
+		         sprintf(msg,"Matrix %s %6.3f\t%6.3f\t%6.3f", msgHorodatage, fdata[0], fdata[1], fdata[2]);
+		         logTrame(fdLog, verbose, msg);
+			
+			 memset(msg, 0, 50);
+		         sprintf(msg,"Matrix %s %6.3f\t%6.3f\t%6.3f", msgHorodatage, fdata[3], fdata[4], fdata[5]);
+		         logTrame(fdLog, verbose, msg);
+
+			 memset(msg, 0, 50);
+		         sprintf(msg,"Matrix %s %6.3f\t%6.3f\t%6.3f", msgHorodatage, fdata[6], fdata[7], fdata[8]);
+		         logTrame(fdLog, verbose, msg);			
+		    	}
 		      break;
 		    default:
 		      ;
