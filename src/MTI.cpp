@@ -214,7 +214,7 @@ int readInertialSensor(INERTIAL_DATA* output)
     char msg[250];
     char msgHorodatage[100];
     static char *logFile=NULL;
-    int verbose = 1;
+    int verbose = 0;
     FILE *fdLog = NULL;
 
     ///////////////////////////////////////////////////
@@ -333,7 +333,7 @@ int initInertialSensor()
 { 
   // convert float to string to log
   char msg[250];
-  int verbose = 0;
+  int verbose = 1;
   FILE *fdLog = NULL;
 
   // load user settings in inertial sensor
