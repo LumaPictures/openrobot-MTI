@@ -1,4 +1,4 @@
-#	$LAAS: Makefile.in,v 1.1 2007/03/20 10:24:43 fcamps Exp $
+#	$LAAS: Makefile.in,v 1.2 2007/10/09 10:53:31 sjoyeux Exp $
 #
 # Copyright (c) 2005 CNRS/LAAS
 #
@@ -20,13 +20,13 @@ exec_prefix=	@exec_prefix@
 top_builddir=	@top_builddir@
 top_srcdir=	@top_srcdir@
 srcdir=		@srcdir@
-INCLUDEDIR=	@includedir@/MTI
+INCLUDEDIR=	@includedir@/MTI-clients
 
 INSTALL=	@INSTALL@
 INSTALL_DATA=	$(INSTALL) -m 644
 MKINSTALLDIRS=	/bin/sh $(top_srcdir)/mkinstalldirs
 
-files=MTIComm.h MTI.h
+files=MTComm.h MTI.h structMTI.h
 
 
 all clean depend:

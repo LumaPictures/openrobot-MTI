@@ -14,8 +14,8 @@
 
 #include <stdlib.h>
 
-#include "MTI.h"
-#include "MTComm.h"
+#include "MTI/MTI.h"
+#include "MTI/MTComm.h"
 
 #include <stdio.h>
 #include <errno.h>

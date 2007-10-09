@@ -1,4 +1,6 @@
 
+#ifndef _MTI_INCLUDE
+#define _MTI_INCLUDE
 
 
 #ifndef WIN32
@@ -8,13 +10,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "MTComm.h"
 
-
-#ifndef MTI_H
-#define MTI_H
-
-void usage(const char *progname);
+int initInertialSensor();
 
 FILE* setLogData(char *_fileName);
 
@@ -22,9 +19,16 @@ void logTrame(FILE *fd, int modeVerbose, char *message);
 
 void printHorodatage(char *msg);
 
-void getUserInputs(char *device, int *portNumber, char *deviceName, int *outputMode,  int *outputSettings);
+void getUserInputs( char *device, int mode, int outputDisplay);
 
-bool doMtSettings(CMTComm mtcomm, int outputMode, int *outputSettings, unsigned short *numDevices);
+int doMtSettings(void);
 
-int initInertialSensor(int mode, char *device);
+int startMTI(int argc, char *argv[]);
+
+float _ACC[4];
+float _GYR[4];
+float _MAG[4];
+float _EULER[4];
+
 #endif
+

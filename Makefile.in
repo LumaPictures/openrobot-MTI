@@ -1,4 +1,4 @@
-#	$LAAS: Makefile.in,v 1.1 2007/02/19 16:18:04 fcamps Exp $
+#	$LAAS: Makefile.in,v 1.2 2007/10/09 10:53:30 sjoyeux Exp $
 
 prefix=		@prefix@
 exec_prefix=	@exec_prefix@
@@ -20,9 +20,9 @@ depend:
 		$(MAKE) -C $$d depend || exit 2; \
 	done
 
-install:: MTI.pc
+install:: MTI-clients.pc
 	$(MKINSTALLDIRS) $(LIBDIR)/pkgconfig
-	$(INSTALL) MTI.pc $(LIBDIR)/pkgconfig
+	$(INSTALL) MTI-clients.pc $(LIBDIR)/pkgconfig
 
 install::
 	@for d in $(SUBDIRS); do \
@@ -38,4 +38,4 @@ distclean: clean
 	@for d in $(SUBDIRS); do \
 		$(MAKE) -C $$d distclean ;\
 	done
-	rm -f Makefile libtool config.log config.status MTI.pc
+	rm -f Makefile libtool config.log config.status MTI-clients.pc
