@@ -333,7 +333,7 @@ int initInertialSensor()
 { 
   // convert float to string to log
   char msg[250];
-  int verbose = 1;
+  int verbose = 0;
   FILE *fdLog = NULL;
 
   // load user settings in inertial sensor
