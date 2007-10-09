@@ -9,9 +9,11 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-
+#include "structMTI.h"
 
 int initInertialSensor();
+int readInertialSensor(INERTIAL_DATA* data);
+void closeInertialSensor();
 
 FILE* setLogData(char *_fileName);
 
@@ -24,11 +26,6 @@ void getUserInputs( char *device, int mode, int outputDisplay);
 int doMtSettings(void);
 
 int startMTI(int argc, char *argv[]);
-
-float _ACC[4];
-float _GYR[4];
-float _MAG[4];
-float _EULER[4];
 
 #endif
 

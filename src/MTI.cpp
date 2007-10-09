@@ -204,6 +204,124 @@ int doMtSettings(void)
   return 1;
 }
 
+int readInertialSensor(INERTIAL_DATA* output)
+{
+    unsigned char data[MAXMSGLEN];
+    short datalen;
+    float fdata[18] = {0};
+    unsigned short samplecounter;
+
+    char msg[250];
+    char msgHorodatage[100];
+    static char *logFile=NULL;
+    int verbose = 1;
+    FILE *fdLog = NULL;
+
+    ///////////////////////////////////////////////////
+    // read inertial sensor and get data
+    //
+    ///////////////////////////////////////////////////
+    if(mtcomm.readDataMessage(data, datalen) == MTRV_OK)
+    {
+	// get real time clock
+	printHorodatage(msgHorodatage);
+	mtcomm.getValue(VALUE_SAMPLECNT, samplecounter, data, BID_MASTER);      		 
+
+	if ((outputMode & OUTPUTMODE_CALIB) != 0)
+	{
+	    // Output Calibrated data
+	    mtcomm.getValue(VALUE_CALIB_ACC, fdata, data, BID_MT);	
+
+	    // ACC		  
+	    memset(msg, 0, 50);
+	    sprintf(msg,"ACC %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);		     
+	    logTrame(fdLog, verbose, msg);		   					
+	    mtcomm.getValue(VALUE_CALIB_GYR, fdata, data, BID_MT);
+
+	    output->ACC[0]=fdata[0];
+	    output->ACC[1]=fdata[1];
+	    output->ACC[2]=fdata[2];
+
+	    // GYR		  		    
+	    memset(msg, 0, 50);
+	    sprintf(msg,"GYR %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
+	    logTrame(fdLog, verbose, msg);		    					 
+	    mtcomm.getValue(VALUE_CALIB_MAG, fdata, data, BID_MT);	
+
+	    output->GYR[0]=fdata[0];
+	    output->GYR[1]=fdata[1];
+	    output->GYR[2]=fdata[2];
+
+	    // MAGN
+	    memset(msg, 0, 50);
+	    sprintf(msg,"MAGN %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
+	    logTrame(fdLog, verbose, msg);
+
+	    output->MAG[0]=fdata[0];
+	    output->MAG[1]=fdata[1];
+	    output->MAG[2]=fdata[2];
+	}//endif
+
+	if ((outputMode & OUTPUTMODE_ORIENT) != 0)
+	{
+	    switch(outputSettings & OUTPUTSETTINGS_ORIENTMODE_MASK)
+	    {
+		case OUTPUTSETTINGS_ORIENTMODE_QUATERNION:
+		    // Output: quaternion
+		    mtcomm.getValue(VALUE_ORIENT_QUAT, fdata, data, BID_MT);
+		    printf("%6.3f\t%6.3f\t%6.3f\t%6.3f\n",
+			    fdata[0],
+			    fdata[1], 
+			    fdata[2], 
+			    fdata[3]); 
+		    break;
+
+		case OUTPUTSETTINGS_ORIENTMODE_EULER:
+		    // Output: Euler
+		    printHorodatage(msgHorodatage);
+		    memset(msg, 0, 50);
+		    mtcomm.getValue(VALUE_ORIENT_EULER, fdata, data, BID_MT);	
+
+		    // lien avec le poster de GENOM
+		    output->EULER[0]=fdata[0];
+		    output->EULER[1]=fdata[1];
+		    output->EULER[2]=fdata[2];		  		  		    
+
+		    break;
+
+		case OUTPUTSETTINGS_ORIENTMODE_MATRIX:
+		    // Output: Cosine Matrix
+		    mtcomm.getValue(VALUE_ORIENT_MATRIX, fdata, data, BID_MT);
+		    printf("%6.3f\t%6.3f\t%6.3f\n",fdata[0], 
+			    fdata[1], 
+			    fdata[2]);
+		    printf("%6.3f\t%6.3f\t%6.3f\n",fdata[3],
+			    fdata[4], 
+			    fdata[5]);
+		    printf("%6.3f\t%6.3f\t%6.3f\n",fdata[6], 
+			    fdata[7], 
+			    fdata[8]);
+		    break;
+
+		default:
+		    ;
+	    }// end switch
+	} // endif	
+    } //endif check read data
+    else // display error on read buffer
+    {
+	if(logFile != NULL)
+	{
+	    memset(msg, 0, 50);	
+	    sprintf(msg, "failed to read message, code (%d)\n", mtcomm.getLastRetVal());
+	    logTrame(fdLog, verbose, msg);
+	}
+	else
+	    fprintf(stderr, "MTI failed to read message, code (%d)\n", mtcomm.getLastRetVal());
+    }
+
+    return MTRV_OK;
+}
 
 /*! 
   @brief Initialisation de la centrale par un programme externe - > module Genome
@@ -213,18 +331,10 @@ int doMtSettings(void)
 */
 int initInertialSensor()
 { 
-  unsigned char data[MAXMSGLEN];
-  short datalen;
-  float fdata[18] = {0};
-  unsigned short samplecounter;
-
   // convert float to string to log
   char msg[250];
-  char msgHorodatage[100];
-  static char *logFile=NULL;
   int verbose = 1;
   FILE *fdLog = NULL;
-
 
   // load user settings in inertial sensor
   //getUserInputs(device, mode, outputDisplay);	
@@ -232,148 +342,39 @@ int initInertialSensor()
   // Open and initialize serial port
 #ifdef WIN32
   if (mtcomm.openPort(portNumber) != MTRV_OK)
-    {
+  {
       printf("Cannot open COM port %s mode: %d\n", device, mode);
 #else
-      if (mtcomm.openPort(deviceName) != MTRV_OK)
-	{
-	  printf("MTI Cannot open COM port %s\n", deviceName);
+  if (mtcomm.openPort(deviceName) != MTRV_OK)
+  {
+      printf("MTI Cannot open COM port %s\n", deviceName);
 #endif
-	  return MTRV_INPUTCANNOTBEOPENED;
-	}	
+      return MTRV_INPUTCANNOTBEOPENED;
+  }	
 
-      if(doMtSettings() == -1)
-	return MTRV_UNEXPECTEDMSG;
+  if(doMtSettings() == -1)
+    return MTRV_UNEXPECTEDMSG;
        
-      // output format logged into log file if needed
-      
-      memset(msg, 0, 50);
-      sprintf(msg,"MTI Calibrated sensor data - LAAS/CNRS 2007\n");
-      logTrame(fdLog, verbose, msg);
-      memset(msg, 0, 50);
-      sprintf(msg,"ACCX ACCY ACCZ : unity m/s2 \nGYRX GYRY GYRZ : unity rad/s\nMAGNX MAGNY MAGNZ :\
-       arbitrary units normalized to earth field strength\nEulerX EulerY EulerZ : unity degree\n");   
-      // initial value for inertial sensor
-      logTrame(fdLog, verbose, msg);
-	
-      ///////////////////////////////////////////////////
-      // read inertial sensor and get data
-      //
-      ///////////////////////////////////////////////////
-      if(mtcomm.readDataMessage(data, datalen) == MTRV_OK)
-	{
-	  // get real time clock
-	  printHorodatage(msgHorodatage);
+  // output format logged into log file if needed
+  memset(msg, 0, 50);
+  sprintf(msg,"MTI Calibrated sensor data - LAAS/CNRS 2007\n");
+  logTrame(fdLog, verbose, msg);
+  memset(msg, 0, 50);
+  sprintf(msg,"ACCX ACCY ACCZ : unity m/s2 \nGYRX GYRY GYRZ : unity rad/s\nMAGNX MAGNY MAGNZ :\
+   arbitrary units normalized to earth field strength\nEulerX EulerY EulerZ : unity degree\n");   
+  // initial value for inertial sensor
+  logTrame(fdLog, verbose, msg);
 
-	  mtcomm.getValue(VALUE_SAMPLECNT, samplecounter, data, BID_MASTER);      		 
-	 				
-	  if ((outputMode & OUTPUTMODE_CALIB) != 0)
-	    {
-	      // Output Calibrated data
-	      mtcomm.getValue(VALUE_CALIB_ACC, fdata, data, BID_MT);	
-		      	      
-	      // lien avec le poster de GENOM
-	      _ACC[0]=fdata[0];
-	      _ACC[1]=fdata[1];
-	      _ACC[2]=fdata[2];
+  return MTRV_OK;
+}
 
-	      // ACC		  
-	      memset(msg, 0, 50);
-	      sprintf(msg,"ACC %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);		     
-	      logTrame(fdLog, verbose, msg);		   					
-	      mtcomm.getValue(VALUE_CALIB_GYR, fdata, data, BID_MT);
+void closeInertialSensor()
+{
+  // When done, close the serial port
+  mtcomm.close();
+}
 
-
-		  
-	      // GYR		  		    
-	      memset(msg, 0, 50);
-	      sprintf(msg,"GYR %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
-	      logTrame(fdLog, verbose, msg);		    					 
-	      mtcomm.getValue(VALUE_CALIB_MAG, fdata, data, BID_MT);	
-	      
-	       // lien avec le poster de GENOM
-	      _GYR[0]=fdata[0];
-	      _GYR[1]=fdata[1];
-	      _GYR[2]=fdata[2];
-	
-		  
-	      // MAGN
-	      memset(msg, 0, 50);
-	      sprintf(msg,"MAGN %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
-	      logTrame(fdLog, verbose, msg);
-
-	      // lien avec le poster de GENOM
-	      _MAG[0]=fdata[0];
-	      _MAG[1]=fdata[1];
-	      _MAG[2]=fdata[2];
-
-		  
-	    }//endif
-
-	  if ((outputMode & OUTPUTMODE_ORIENT) != 0)
-	    {
-	      switch(outputSettings & OUTPUTSETTINGS_ORIENTMODE_MASK)
-		{
-		case OUTPUTSETTINGS_ORIENTMODE_QUATERNION:
-		  // Output: quaternion
-		  mtcomm.getValue(VALUE_ORIENT_QUAT, fdata, data, BID_MT);
-		  printf("%6.3f\t%6.3f\t%6.3f\t%6.3f\n",
-			 fdata[0],
-			 fdata[1], 
-			 fdata[2], 
-			 fdata[3]); 
-		  break;
-
-		case OUTPUTSETTINGS_ORIENTMODE_EULER:
-		  // Output: Euler
-		  printHorodatage(msgHorodatage);
-		  memset(msg, 0, 50);
-		  mtcomm.getValue(VALUE_ORIENT_EULER, fdata, data, BID_MT);	
-
-		  // lien avec le poster de GENOM
-		  _EULER[0]=fdata[0];
-		  _EULER[1]=fdata[1];
-		  _EULER[2]=fdata[2];		  		  		    
-		  		    			  
-		  break;
-
-		case OUTPUTSETTINGS_ORIENTMODE_MATRIX:
-		  // Output: Cosine Matrix
-		  mtcomm.getValue(VALUE_ORIENT_MATRIX, fdata, data, BID_MT);
-		  printf("%6.3f\t%6.3f\t%6.3f\n",fdata[0], 
-			 fdata[1], 
-			 fdata[2]);
-		  printf("%6.3f\t%6.3f\t%6.3f\n",fdata[3],
-			 fdata[4], 
-			 fdata[5]);
-		  printf("%6.3f\t%6.3f\t%6.3f\n",fdata[6], 
-			 fdata[7], 
-			 fdata[8]);
-		  break;
-
-		default:
-		  ;
-		}// end switch
-	    } // endif	
-	} //endif check read data
-      else // display error on read buffer
-	{
-	  if(logFile != NULL)
-	    {
-	      memset(msg, 0, 50);	
-	      sprintf(msg, "failed to read message, code (%d)\n", mtcomm.getLastRetVal());
-	      logTrame(fdLog, verbose, msg);
-	    }
-	  else
-	    fprintf(stderr, "MTI failed to read message, code (%d)\n", mtcomm.getLastRetVal());
-	}
-
-      // When done, close the serial port
-      mtcomm.close();
-
-      return MTRV_OK;
-
-    }
+    
 
 
 /*!

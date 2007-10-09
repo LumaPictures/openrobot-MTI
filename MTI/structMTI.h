@@ -5,7 +5,7 @@
 #ifndef STRUCT_MTI_H
 #define STRUCT_MTI_H
 
-typedef struct INERTIAL_INIT
+typedef struct INERTIAL_CONFIG
 {
   
   char device[24]; // dev/ttyS0 par exemple
@@ -19,12 +19,16 @@ typedef struct INERTIAL_INIT
 // 2 - Euler angles
 // 3 - Matrix
   int outputMode; 
+} INERTIAL_CONFIG;
+
   
+typedef struct INERTIAL_DATA
+{
   float ACC[4];
   float GYR[4];
   float MAG[4];
   float EULER[4];
+} INERTIAL_DATA;
 
-} INERTIAL_INIT;
 
 #endif
