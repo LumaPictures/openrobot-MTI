@@ -1,601 +1,280 @@
 
 /*!
- * Copyright (c) 2006 Frederic Camps
+ * Copyright (c) 2008 Arnaud Degroote
  *
  * $Source:
- * $Revision: 0.a
- * $Date: 26 september 2006
+ * $Revision: 0.c
+ * $Date: 15 July 2008
  * 
  */
 
-#ifndef WIN32
-#include <sys/ioctl.h>
-#endif
-
-#include <stdlib.h>
-
 #include "MTI/MTI.h"
-#include "MTI/MTComm.h"
 
-#include <stdio.h>
-#include <errno.h>
+#include <iostream>
+#include <string>
+#include <sstream>
 
-#include <time.h>
-#include <sys/time.h>
-
-
-CMTComm mtcomm;
-int portNumber;
-char deviceName[15];
-int outputMode;
-int outputSettings;
-unsigned short numDevices;
-int screenSensorOffset = 0;
-
-
-/*! 
-  @brief : Utilisation du programme principal
-*/
-static void usage(const char *progname)
+static std::string getHorodatage()
 {
-  fprintf(stderr, "usage: %s [-v] serial_device [-l] logFile [-o] mode [-d] mode display\n", progname);
-  exit(1);
-}
-
-/*! 
-  @brief
- 
-*/
-FILE* setLogData(char *_fileName)
-{ 
-  FILE *fdLog = NULL;
-   
-  if(_fileName != NULL)
-    {
-      if ((fdLog=fopen(_fileName, "w+" ))== NULL) 
-	{
-	  fprintf(stderr, "open log :%s\n", strerror(errno));
-	  return NULL;
-	}
-    }
-  return fdLog;
-}
-
-
-/*!
-  @brief
-*/
-void logTrame(FILE *fd, int modeVerbose, char *message)
-{
-  // verbose and log data into a file
-  if(fd != NULL && modeVerbose == 1)
-    {
-      fprintf(stdout, "%s\n", message);
-      fprintf(fd, "%s\n", message);
-    }
-  // only verbose stdout
-  else if(fd == NULL && modeVerbose == 1)
-    {
-      fprintf(stdout, "%s\n", message);
-    }
-  // only log file
-  else if(fd != NULL && modeVerbose == 0)
-    {
-      fprintf(fd, "%s\n", message);      
-    }  
-  fflush(fd);
-}
-
-
-
-/*! 
-  @brief
-
-  @param struct timeval timev : affiche le contenu
-*/
-void printHorodatage(char *msg)
-{    
   struct timespec Timespec;
+  std::ostringstream oss;
 
   clock_gettime(CLOCK_REALTIME,&Timespec);
- 
-  /* Print the formatted time, in seconds, followed by a decimal point
-     and the ns. */
-  sprintf (msg,"%ld.%ld", long(Timespec.tv_sec), Timespec.tv_nsec);
+
+  oss << Timespec.tv_sec << "." << Timespec.tv_nsec;
+  return oss.str();
 }
 
-
-
-/*!
-  @brief : user setting
-*/
-
-void getUserInputs(char *device, int mode, int outputDisplay)
+MTI::MTI(const char * dev_, int mode_, int outputDisplay_):
+	device(dev_), mode(0), outputDisplay(0), mtcomm(), connected(false) 
 {
-#ifdef WIN32
-  printf("Enter COM port: ");
-  scanf("%d", &portNumber);
-#else
-  strcpy(deviceName, device);
-#endif
-	
+	_set_mode(mode_);
+	_set_outputDisplay(outputDisplay_);
+	connect();
+	_configure_device();
+}
+
+MTI::~MTI()
+{
+	disconnect();
+}
+
+bool MTI::connect()
+{
+	if (!connected) {
+		if (mtcomm.openPort(device) != MTRV_OK) {
+			std::cerr << "Can't open " << device << std::endl;
+			return false;
+		} else {
+			connected = true;
+		}
+	}
+
+	return true;
+}
+
+bool MTI::connect(const char * dev)
+{
+	device = dev_;
+	connect();
+	_configure_device();
+}
+
+bool MTI::disconnect()
+{
+	if (!connected)
+		return true;
+
+	mtcomm.close();
+	connected = false;
+	return true;
+}
+
+bool MTI::_set_mode(int mode_)
+{
+	if (mode_ < 1 || mode_ > 3)
+		return false;
 
 // mode :
 // 1 - Calibrated data
-// 2 - Orientation data\n");
+// 2 - Orientation data;
 // 3 - Both Calibrated and Orientation data\n
 
- outputMode = mode;
+	mode = mode_;
+// Update outputMode to match data specs of SetOutputMode
+	mode *= 2;
 
+	return true;
+}
+
+bool MTI::_set_outputDisplay(int outputDisplay_)
+{
+	if (outputDisplay_ < 1 || outputDisplay_ > 3)
+		return false;
 // outputDisplay :
 // 1 - Quaternions
 // 2 - Euler angles
 // 3 - Matrix
-
-// Update outputMode to match data specs of SetOutputMode
-outputMode <<= 1;
-
-  switch(outputDisplay) {
-	case 1:
-		outputSettings = OUTPUTSETTINGS_ORIENTMODE_QUATERNION;
-		printf("angle quaternion\n"); 
-		break;
-	case 2:
-		outputSettings = OUTPUTSETTINGS_ORIENTMODE_EULER;
-		 printf("angle euler\n"); 
-		break;
-	case 3:
-		outputSettings = OUTPUTSETTINGS_ORIENTMODE_MATRIX;
- 		printf("angle matrix\n"); 
-		break;
+	switch(outputDisplay_) {
+		case 1:
+			outputDisplay= OUTPUTSETTINGS_ORIENTMODE_QUATERNION;
+			std::cout << "angle quaternion" << std::endl;
+			break;
+		case 2:
+			outputDisplay= OUTPUTSETTINGS_ORIENTMODE_EULER;
+			std::cout << "angle euler" << std::endl;
+			break;
+		case 3:
+			outputDisplay= OUTPUTSETTINGS_ORIENTMODE_MATRIX;
+			std::cout << "angle matrix" << std::endl;
+			break;
 	}
 
-  outputSettings |= OUTPUTSETTINGS_TIMESTAMP_SAMPLECNT;
+	outputDisplay |= OUTPUTSETTINGS_TIMESTAMP_SAMPLECNT;
+	return true;
 }
 
-
-
-/*!
-  @brief : recording user settings into inertial sensor befor measurement
-*/
-int doMtSettings(void) 
+bool MTI::set_mode(int mode_)
 {
-  unsigned long tmpOutputMode, tmpOutputSettings;
-  unsigned short tmpDataLength;
+	return (_set_mode(mode_) && _configure_device());
+}
 
-  // Put MTi/MTx in Config State
-  if(mtcomm.writeMessage(MID_GOTOCONFIG) != MTRV_OK)
-    {
-      printf("No device connected\n");
-      return -1;
-    }
+bool MTI::set_outputDisplay(int outputDisplay_)
+{
+	return (_set_outputDisplay(outputDisplay_) && _configure_device());
+}
 
-  // Get current settings and check if Xbus Master is connected
-  if (mtcomm.getDeviceMode(&numDevices) != MTRV_OK)
-    {
-      if (numDevices == 1)
-	printf("MTi / MTx has not been detected\nCould not get device mode\n");
-      else
-	printf("Not just MTi / MTx connected to Xbus\nCould not get all device modes\n");
-      return -1;
-    }
-	
-  // Check if Xbus Master is connected
-  mtcomm.getMode(tmpOutputMode, tmpOutputSettings, tmpDataLength, BID_MASTER);
-  if (tmpOutputMode == OUTPUTMODE_XM)
-    {
-      // If Xbus Master is connected, attached Motion Trackers should not send sample counter
-      outputSettings &= 0xFFFFFFFF - OUTPUTSETTINGS_TIMESTAMP_SAMPLECNT;
-    }
-	
-  // Set output mode and output settings for each attached MTi/MTx
-  for (int i = 0; i < numDevices; i++)
-    {
-      if (mtcomm.setDeviceMode(outputMode, outputSettings, BID_MT + i) != MTRV_OK)
-	{
-	  printf("Could not set (all) device mode(s)\n");
-	  return -1;
+bool MTI::_configure_device()
+{
+	unsigned long tmpMode, tmpOutputDisplay;
+	unsigned short tmpDataLength;
+	unsigned short numDevices;
+
+	if (!connected)
+		return false;
+
+	// Put MTi/MTx in Config State
+	if (mtcomm.writeMessage(MID_GOTOCONFIG) != MTRV_OK) {
+		std::cerr << "Can't put the device in Config / state" << std::endl;
+		return false;
 	}
-    }
 
-  // Put MTi/MTx in Measurement State
-  mtcomm.writeMessage(MID_GOTOMEASUREMENT);
-
-  return 1;
-}
-
-int readInertialSensor(INERTIAL_DATA* output)
-{
-    unsigned char data[MAXMSGLEN];
-    short datalen;
-    float fdata[18] = {0};
-    unsigned short samplecounter;
-
-    char msg[250];
-    char msgHorodatage[100];
-    static char *logFile=NULL;
-    int verbose = 0;
-    FILE *fdLog = NULL;
-
-    ///////////////////////////////////////////////////
-    // read inertial sensor and get data
-    //
-    ///////////////////////////////////////////////////
-    if(mtcomm.readDataMessage(data, datalen) == MTRV_OK)
-    {
-	// get real time clock
-	printHorodatage(msgHorodatage);
-	mtcomm.getValue(VALUE_SAMPLECNT, samplecounter, data, BID_MASTER);      		 
-
-	if ((outputMode & OUTPUTMODE_CALIB) != 0)
+	// Get current settings and check if Xbus Master is connected
+	if (mtcomm.getDeviceMode(&numDevices) != MTRV_OK)
 	{
-	    // Output Calibrated data
-	    mtcomm.getValue(VALUE_CALIB_ACC, fdata, data, BID_MT);	
+		if (numDevices == 1) {
+			std::cerr << "MTI / MTx has not been detected" << std::endl;
+			std::cerr << "Could not get device mode" << std::endl;
+		} else {
+			std::cerr << "Not just MTi / MTx connected to Xbus" << std::endl;
+			std::cerr << "Could not get all devices modes" << std::endl;
+		}
 
-	    // ACC		  
-	    memset(msg, 0, 50);
-	    sprintf(msg,"ACC %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);		     
-	    logTrame(fdLog, verbose, msg);		   					
-	    mtcomm.getValue(VALUE_CALIB_GYR, fdata, data, BID_MT);
-
-	    output->ACC[0]=fdata[0];
-	    output->ACC[1]=fdata[1];
-	    output->ACC[2]=fdata[2];
-
-	    // GYR		  		    
-	    memset(msg, 0, 50);
-	    sprintf(msg,"GYR %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
-	    logTrame(fdLog, verbose, msg);		    					 
-	    mtcomm.getValue(VALUE_CALIB_MAG, fdata, data, BID_MT);	
-
-	    output->GYR[0]=fdata[0];
-	    output->GYR[1]=fdata[1];
-	    output->GYR[2]=fdata[2];
-
-	    // MAGN
-	    memset(msg, 0, 50);
-	    sprintf(msg,"MAGN %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
-	    logTrame(fdLog, verbose, msg);
-
-	    output->MAG[0]=fdata[0];
-	    output->MAG[1]=fdata[1];
-	    output->MAG[2]=fdata[2];
-	}//endif
-
-	if ((outputMode & OUTPUTMODE_ORIENT) != 0)
-	{
-	    switch(outputSettings & OUTPUTSETTINGS_ORIENTMODE_MASK)
-	    {
-		case OUTPUTSETTINGS_ORIENTMODE_QUATERNION:
-		    // Output: quaternion
-		    mtcomm.getValue(VALUE_ORIENT_QUAT, fdata, data, BID_MT);
-		    printf("%6.3f\t%6.3f\t%6.3f\t%6.3f\n",
-			    fdata[0],
-			    fdata[1], 
-			    fdata[2], 
-			    fdata[3]); 
-		    break;
-
-		case OUTPUTSETTINGS_ORIENTMODE_EULER:
-		    // Output: Euler
-		    printHorodatage(msgHorodatage);
-		    memset(msg, 0, 50);
-		    mtcomm.getValue(VALUE_ORIENT_EULER, fdata, data, BID_MT);	
-
-		    // lien avec le poster de GENOM
-		    output->EULER[0]=fdata[0];
-		    output->EULER[1]=fdata[1];
-		    output->EULER[2]=fdata[2];		  		  		    
-
-		    break;
-
-		case OUTPUTSETTINGS_ORIENTMODE_MATRIX:
-		    // Output: Cosine Matrix
-		    mtcomm.getValue(VALUE_ORIENT_MATRIX, fdata, data, BID_MT);
-		    printf("%6.3f\t%6.3f\t%6.3f\n",fdata[0], 
-			    fdata[1], 
-			    fdata[2]);
-		    printf("%6.3f\t%6.3f\t%6.3f\n",fdata[3],
-			    fdata[4], 
-			    fdata[5]);
-		    printf("%6.3f\t%6.3f\t%6.3f\n",fdata[6], 
-			    fdata[7], 
-			    fdata[8]);
-		    break;
-
-		default:
-		    ;
-	    }// end switch
-	} // endif	
-    } //endif check read data
-    else // display error on read buffer
-    {
-	if(logFile != NULL)
-	{
-	    memset(msg, 0, 50);	
-	    sprintf(msg, "failed to read message, code (%d)\n", mtcomm.getLastRetVal());
-	    logTrame(fdLog, verbose, msg);
+		return false;
 	}
-	else
-	    fprintf(stderr, "MTI failed to read message, code (%d)\n", mtcomm.getLastRetVal());
-    }
 
-    return MTRV_OK;
-}
-
-/*! 
-  @brief Initialisation de la centrale par un programme externe - > module Genome
-  
-
- @param 
-*/
-int initInertialSensor()
-{ 
-  // convert float to string to log
-  char msg[250];
-  int verbose = 1;
-  FILE *fdLog = NULL;
-
-  // load user settings in inertial sensor
-  //getUserInputs(device, mode, outputDisplay);	
-
-  // Open and initialize serial port
-#ifdef WIN32
-  if (mtcomm.openPort(portNumber) != MTRV_OK)
-  {
-      printf("Cannot open COM port %s mode: %d\n", device, mode);
-#else
-  if (mtcomm.openPort(deviceName) != MTRV_OK)
-  {
-      printf("MTI Cannot open COM port %s\n", deviceName);
-#endif
-      return MTRV_INPUTCANNOTBEOPENED;
-  }	
-
-  if(doMtSettings() == -1)
-    return MTRV_UNEXPECTEDMSG;
-       
-  // output format logged into log file if needed
-  memset(msg, 0, 50);
-  sprintf(msg,"MTI Calibrated sensor data - LAAS/CNRS 2007\n");
-  logTrame(fdLog, verbose, msg);
-  memset(msg, 0, 50);
-  sprintf(msg,"ACCX ACCY ACCZ : unity m/s2 \nGYRX GYRY GYRZ : unity rad/s\nMAGNX MAGNY MAGNZ :\
-   arbitrary units normalized to earth field strength\nEulerX EulerY EulerZ : unity degree\n");   
-  // initial value for inertial sensor
-  logTrame(fdLog, verbose, msg);
-
-  return MTRV_OK;
-}
-
-void closeInertialSensor()
-{
-  // When done, close the serial port
-  mtcomm.close();
-}
-
-    
-
-
-/*!
-  @brief : main API
-*/
-int startMTI(int argc, char *argv[]) 
-{
-  unsigned char data[MAXMSGLEN];
-  short datalen;
-  float fdata[18] = {0};
-  unsigned short samplecounter;
-
-  // convert float to string to log
-  char msg[250];
-  char msgHorodatage[100];
-
-  int  ch;
-  char *prog = argv[0];
-  static char *logFile=NULL;
-  int verbose = 0;
-
- int displayDataOutputFormat=0;
- int _outputMode=0;
-
- printf("API inertial sensor - LAAS CNRS 2007\n");
-
-		
-  while ((ch = getopt(argc, argv, "vd:o:l:")) != -1)
-    {
-      switch (ch)
+	// Check if Xbus Master is connected
+	mtcomm.getMode(tmpMode, tmpOutputDisplay, tmpDataLength, BID_MASTER);
+	if (tmpMode == OUTPUTMODE_XM)
 	{
-	case 'l':
-	  logFile = optarg;	    
-	  break;
-
-	case 'd':// d : display data output format  : 	
-		// 1 - Calibrated data
-		// 2 - Orientation data
-		// 3 - Both Calibrated and Orientation data
-	    	displayDataOutputFormat = atoi(optarg);		
-		break;
-	break;
-
-	case 'o':// o : output mode :
-		// 1 - Quaternions
-		// 2 - Euler angles
-		// 3 - Matrix
-		
-		_outputMode = atoi(optarg);
-		break;
-
-	case 'v':
-	  verbose = 1;
-	  break;
-	  	
-	case '?':
-	default:
-	  usage(argv[0]);
-	} /* switch */
-    }
-
-  argc -= optind;
-  argv += optind;
-  
-  if (argc < 1)
-    {
-      usage(prog);
-      exit(0);
-    }
-
-  // open log file
-  FILE *fdLog = NULL;
-  if(logFile != NULL)
-    fdLog = setLogData(logFile);
-
-  // load user settings in inertial sensor
-  getUserInputs(argv[0], _outputMode, displayDataOutputFormat);	
-
-  // Open and initialize serial port
-#ifdef WIN32
-  if (mtcomm.openPort(portNumber) != MTRV_OK)
-    {
-      printf("Cannot open COM port %d\n", portNumber);
-#else
-     if (mtcomm.openPort(deviceName) != MTRV_OK)
-	{
-	  printf("MTI Cannot open COM port %s\n", deviceName);
-#endif
-	  return MTRV_INPUTCANNOTBEOPENED;
-	}	
-
-      if(doMtSettings() == -1)
-	return MTRV_UNEXPECTEDMSG;
-       
-      // output format logged into log file if needed
-      if(verbose == 1 || logFile != NULL)
-	{
-	  memset(msg, 0, 50);
-	  sprintf(msg,"MTI Calibrated sensor data - LAAS/CNRS 2006\n");
-	  logTrame(fdLog, verbose, msg);
-	  memset(msg, 0, 50);
-	  sprintf(msg,"ACCX ACCY ACCZ : unity m/s2 \nGYRX GYRY GYRZ : unity rad/s\nMAGNX MAGNY MAGNZ : arbitrary units normalized to earth field strength\nEulerX EulerY EulerZ : unity degree\n");			   
-	  logTrame(fdLog, verbose, msg);
+		// If Xbus Master is connected, attached Motion Trackers should not send sample counter
+		outputDisplay &= 0xFFFFFFFF - OUTPUTSETTINGS_TIMESTAMP_SAMPLECNT;
 	}
-	
-      while(1)
-	{
-	  if(mtcomm.readDataMessage(data, datalen) == MTRV_OK)
-	    {
-	      // get real time clock
-	      printHorodatage(msgHorodatage);
 
-	      mtcomm.getValue(VALUE_SAMPLECNT, samplecounter, data, BID_MASTER);      		 
-	 				
-	      if ((outputMode & OUTPUTMODE_CALIB) != 0)
+	// Set output mode and output settings for each attached MTi/MTx
+	for (int i = 0; i < numDevices; i++)
+	{
+		if (mtcomm.setDeviceMode(mode, outputDisplay, BID_MT + i) != MTRV_OK)
 		{
-		  // Output Calibrated data
-		  mtcomm.getValue(VALUE_CALIB_ACC, fdata, data, BID_MT);	
-		      
-		  if(verbose == 1 || logFile != NULL)
-		    {
-		      memset(msg, 0, 50);
-		      sprintf(msg,"ACC %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
-		    
-		      logTrame(fdLog, verbose, msg);
-		    }
-					
-		  mtcomm.getValue(VALUE_CALIB_GYR, fdata, data, BID_MT);		 
+			std::cerr << "Could not set (all) device mode(s)" << std::endl;
+			return false;
+		}
+	}
 
-		  if(verbose == 1 || logFile != NULL)
-		    {
-		      memset(msg, 0, 50);
-		      sprintf(msg,"GYR %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
-		      logTrame(fdLog, verbose, msg);
-		    }
-					 
-		  mtcomm.getValue(VALUE_CALIB_MAG, fdata, data, BID_MT);		
+	// Put MTi/MTx in Measurement State
+	mtcomm.writeMessage(MID_GOTOMEASUREMENT);
 
-		  if(verbose == 1 || logFile != NULL)
-		    {
-		      memset(msg, 0, 50);
-		      sprintf(msg,"MAGN %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
-		      logTrame(fdLog, verbose, msg);
-		    }
+	return true;
+}
+
+bool MTI::read(INERTIAL_DATA * output, bool verbose)
+{
+	if (!connected)
+		return false;
+
+	unsigned char data[MAXMSGLEN];
+	short datalen;
+	float fdata[18] = {0};
+
+	std::string msgHorodatage;
+
+	std::cout.precision(3);
+
+	///////////////////////////////////////////////////
+	// read inertial sensor and get data
+	//
+	///////////////////////////////////////////////////
+	if(mtcomm.readDataMessage(data, datalen) == MTRV_OK)
+	{
+		unsigned short samplecounter;
+		// get real time clock
+		msgHorodatage = getHorodatage();
+		mtcomm.getValue(VALUE_SAMPLECNT, samplecounter, data, BID_MASTER);      		 
+
+		if ((mode & OUTPUTMODE_CALIB) != 0)
+		{
+			// ACC		  
+			mtcomm.getValue(VALUE_CALIB_ACC, fdata, data, BID_MT);	
+			if (verbose)
+				std::cout << "ACC " << msgHorodatage << " " << fdata[0] << " " << fdata[1] << " " << fdata[2] << std::endl;
+
+			output->ACC[0]=fdata[0];
+			output->ACC[1]=fdata[1];
+			output->ACC[2]=fdata[2];
+
+			// GYR		  		    
+			mtcomm.getValue(VALUE_CALIB_GYR, fdata, data, BID_MT);
+			if (verbose)
+				std::cout << "GYR " << msgHorodatage << " " << fdata[0] << " " << fdata[1] << " " << fdata[2] << std::endl;
+
+			output->GYR[0]=fdata[0];
+			output->GYR[1]=fdata[1];
+			output->GYR[2]=fdata[2];
+
+			// MAGN
+			mtcomm.getValue(VALUE_CALIB_MAG, fdata, data, BID_MT);	
+			if (verbose)
+				std::cout << "MAG " << msgHorodatage << " " << fdata[0] << " " << fdata[1] << " " << fdata[2] << std::endl;
+
+			output->MAG[0]=fdata[0];
+			output->MAG[1]=fdata[1];
+			output->MAG[2]=fdata[2];
 		}//endif
 
-	      if ((outputMode & OUTPUTMODE_ORIENT) != 0)
+		if ((mode & OUTPUTMODE_ORIENT) != 0)
 		{
-		  switch(outputSettings & OUTPUTSETTINGS_ORIENTMODE_MASK)
-		    {
-		    case OUTPUTSETTINGS_ORIENTMODE_QUATERNION:
-		      // Output: quaternion
-		      mtcomm.getValue(VALUE_ORIENT_QUAT, fdata, data, BID_MT);
-
-			if(verbose == 1 || logFile != NULL)
-		    	{
-		         memset(msg, 0, 50);
-		         sprintf(msg,"Quaternion %s %6.3f\t%6.3f\t%6.3f\t%6.3f", msgHorodatage, fdata[0], fdata[1], fdata[2], fdata[3]);
-		         logTrame(fdLog, verbose, msg);
-		    	}
-		      break;
-		    case OUTPUTSETTINGS_ORIENTMODE_EULER:
-		      // Output: Euler		      
-		      mtcomm.getValue(VALUE_ORIENT_EULER, fdata, data, BID_MT);		
-
-		      if(verbose == 1 || logFile != NULL)
+			switch(outputDisplay & OUTPUTSETTINGS_ORIENTMODE_MASK)
 			{
-			  memset(msg, 0, 50);
-			  sprintf(msg,"Euler %s %g %g %g", msgHorodatage, fdata[0], fdata[1], fdata[2]);
-			  logTrame(fdLog, verbose, msg);
-			}			  
+				case OUTPUTSETTINGS_ORIENTMODE_QUATERNION:
+					// Output: quaternion
+					mtcomm.getValue(VALUE_ORIENT_QUAT, fdata, data, BID_MT);
+					if (verbose)
+						std::cout << fdata[0] << "\t" << fdata[1] << "\t" << fdata[2] << "\t" << fdata[3] << std::endl;
+					break;
 
-		      break;
-		    case OUTPUTSETTINGS_ORIENTMODE_MATRIX:
-		      // Output: Cosine Matrix
-			mtcomm.getValue(VALUE_ORIENT_MATRIX, fdata, data, BID_MT);
-			
-			if(verbose == 1 || logFile != NULL)
-		    	{
-		         memset(msg, 0, 50);
-		         sprintf(msg,"Matrix %s %6.3f\t%6.3f\t%6.3f", msgHorodatage, fdata[0], fdata[1], fdata[2]);
-		         logTrame(fdLog, verbose, msg);
-			
-			 memset(msg, 0, 50);
-		         sprintf(msg,"Matrix %s %6.3f\t%6.3f\t%6.3f", msgHorodatage, fdata[3], fdata[4], fdata[5]);
-		         logTrame(fdLog, verbose, msg);
+				case OUTPUTSETTINGS_ORIENTMODE_EULER:
+					// Output: Euler
+					msgHorodatage = getHorodatage();
+ 					mtcomm.getValue(VALUE_ORIENT_EULER, fdata, data, BID_MT);	
+					if (verbose)
+						std::cout << "EUL " << msgHorodatage << " " << fdata[0] << " " << fdata[1] << " " << fdata[2] << std::endl;
 
-			 memset(msg, 0, 50);
-		         sprintf(msg,"Matrix %s %6.3f\t%6.3f\t%6.3f", msgHorodatage, fdata[6], fdata[7], fdata[8]);
-		         logTrame(fdLog, verbose, msg);			
-		    	}
-		      break;
-		    default:
-		      ;
-		    }// end switch
+					// lien avec le poster de GENOM
+					output->EULER[0]=fdata[0];
+					output->EULER[1]=fdata[1];
+					output->EULER[2]=fdata[2];		  		  		    
+					break;
+
+				case OUTPUTSETTINGS_ORIENTMODE_MATRIX:
+					// Output: Cosine Matrix
+					mtcomm.getValue(VALUE_ORIENT_MATRIX, fdata, data, BID_MT);
+					if (verbose) {
+						std::cout << fdata[0] << "\t" << fdata[1] << "\t" << fdata[2] << std::endl;
+						std::cout << fdata[3] << "\t" << fdata[4] << "\t" << fdata[5] << std::endl;
+						std::cout << fdata[6] << "\t" << fdata[7] << "\t" << fdata[8] << std::endl;
+					}
+					break;
+
+				default:
+					;
+			}// end switch
 		} // endif	
-	    } //endif check read data
-	  else // display error on read buffer
-	    {
-	      if(verbose == 1 || logFile != NULL)
-		{
-		  memset(msg, 0, 50);	
-		  sprintf(msg, "failed to read message, code (%d)\n", mtcomm.getLastRetVal());
-		  logTrame(fdLog, verbose, msg);
-		}
-	      else
-		fprintf(stderr, "MTI failed to read message, code (%d)\n", mtcomm.getLastRetVal());
-	    }
-	}// end while
-
-      // if data logged then, close fd
-
-      if(fdLog != NULL)
-	{	
-	  fclose(fdLog);
+	} //endif check read data
+	else // display error on read buffer
+	{
+		std::cerr << "MTI failed to read message, code " <<  mtcomm.getLastRetVal() << std::endl;
+		return false;
 	}
 
-      // When done, close the serial port
-      mtcomm.close();
-
-      return MTRV_OK;
-    }
-
-
+	return true;
+}

@@ -2,30 +2,36 @@
 #ifndef _MTI_INCLUDE
 #define _MTI_INCLUDE
 
-
-#ifndef WIN32
-#include <sys/ioctl.h>
-#endif
-
-#include <stdlib.h>
-#include <stdio.h>
 #include "structMTI.h"
+#include "MTI/MTComm.h"
 
-int initInertialSensor();
-int readInertialSensor(INERTIAL_DATA* data);
-void closeInertialSensor();
+class MTI {
+	private:
+		const char * device;
+		int mode;
+		int outputDisplay;
+		CMTComm mtcomm;
+		bool connected;
 
-FILE* setLogData(char *_fileName);
+		bool _set_mode(int mode_);
+		bool _set_outputDisplay(int outputDisplay_);
+		bool _configure_device();
 
-void logTrame(FILE *fd, int modeVerbose, char *message);
+	public:
+		MTI(const char *dev_, int mode_, int outputDisplay_);
+		~MTI();
 
-void printHorodatage(char *msg);
+		bool connect();
+		bool connect(const char * dev);
+		bool disconnect();
 
-void getUserInputs( char *device, int mode, int outputDisplay);
+		bool is_connected() { return connected; };
 
-int doMtSettings(void);
+		bool set_mode(int mode_);
+		bool set_outputDisplay(int outputDisplay_);
 
-int startMTI(int argc, char *argv[]);
+		bool read(INERTIAL_DATA * output, bool verbose=false);
+};
 
 #endif
 
