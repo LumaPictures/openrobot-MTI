@@ -1,2 +1,0 @@
-g++ -O2 -Wall -c MTI.cpp MTComm.cpp
-g++ -o MTI MTI.o MTComm.o -lrt
