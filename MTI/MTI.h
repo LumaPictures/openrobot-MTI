@@ -3,7 +3,7 @@
 #define _MTI_INCLUDE
 
 #include "structMTI.h"
-#include "MTI/MTComm.h"
+#include "MTComm.h"
 
 class MTI {
 	private:

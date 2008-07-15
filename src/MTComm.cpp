@@ -80,7 +80,7 @@
 //  PARTICULAR PURPOSE.
 //////////////////////////////////////////////////////////////////////
 
-#include "MTComm.h"
+#include "MTI/MTComm.h"
 
 #ifdef _DEBUG
 #undef THIS_FILE
@@ -2670,7 +2670,7 @@ bool CMTComm::checkChecksum(const unsigned char *msgBuffer, const int msgBufferL
 
   @param struct timeval timev : affiche le contenu
 */
-void CMTComm::printHorodatage()
+void printHorodatage()
 {        
   struct timeval timev;
 
