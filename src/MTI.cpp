@@ -55,7 +55,7 @@ bool MTI::connect()
 
 bool MTI::connect(const char * dev)
 {
-	device = dev_;
+	device = dev;
 	connect();
 	_configure_device();
 }
