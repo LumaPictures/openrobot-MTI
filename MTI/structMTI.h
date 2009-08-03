@@ -30,5 +30,20 @@ typedef struct INERTIAL_DATA
   float EULER[4];
 } INERTIAL_DATA;
 
+/* AVERAGING_PARAMETERS is used to average the values on the roll and pitch
+   angles */
+typedef struct AVERAGING_PARAMETERS
+{
+  int	nbSamples;
+} AVERAGING_PARAMETERS;
+
+/* MTI_BIASES contains the estimated bias values on the roll and pitch angles
+   (in degrees) */
+typedef struct MTI_BIASES
+{
+  double	pitchBias;
+  double	rollBias;	/* In degrees */
+} MTI_BIASES;
+
 
 #endif
