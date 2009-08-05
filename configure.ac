@@ -1,6 +1,6 @@
-AC_REVISION($LAAS: configure.ac,v 1.4 2008/07/17 16:16:47 adegroot Exp $)
+AC_REVISION($LAAS: configure.ac,v 1.5 2009/08/05 11:23:44 adegroot Exp $)
 
-AC_INIT(MTI-clients,0.2)
+AC_INIT(MTI-clients,0.3)
 AC_PREREQ(2.59)
 
 AC_CANONICAL_HOST
