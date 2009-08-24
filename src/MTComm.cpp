@@ -82,6 +82,8 @@
 
 #include "MTI/MTComm.h"
 
+#include <iostream>
+
 #ifdef _DEBUG
 #undef THIS_FILE
 static char THIS_FILE[]=__FILE__;
@@ -101,7 +103,7 @@ CMTComm::CMTComm()
 	m_timeOut = TO_DEFAULT;
 	m_nTempBufferLen = 0;
 	m_clkEnd = 0;
-	for (int i=0;i<MAXDEVICES+1;i++) {
+	for (int i=0; i<MAXDEVICES+1; i++) {
 		m_storedOutputMode[i] = INVALIDSETTINGVALUE;
 		m_storedOutputSettings[i] = INVALIDSETTINGVALUE;
 		m_storedDataLength[i] = 0;
@@ -1705,10 +1707,10 @@ short CMTComm::reqSetting(const unsigned char mid, const unsigned char param,
 // for serial port connections.
 //
 // Input
-//	 mid		: Message ID of message to send
-//   bid		: Bus ID of message to send (def 0xFF)
-//	 value		: Contains the integer value to be used
-//	 valuelen	: Length in bytes of the value
+//	mid		: Message ID of message to send
+//	bid		: Bus ID of message to send (def 0xFF)
+//	value		: Contains the integer value to be used
+//	valuelen	: Length in bytes of the value
 //
 // Output
 //   = MTRV_OK if an Ack message is received
@@ -1716,9 +1718,9 @@ short CMTComm::reqSetting(const unsigned char mid, const unsigned char param,
 //	 = MTRV_TIMEOUT if timeout occurred
 //
 //
-short CMTComm::setSetting(const unsigned char mid,
-						  const unsigned long value, const unsigned short valuelen,
-						  const unsigned char bid)
+short CMTComm::setSetting(const unsigned char mid, const unsigned long value, 
+						   const unsigned short valuelen,
+						   const unsigned char bid)
 {
 	unsigned char buffer[MAXMSGLEN];
 	short msgLen;
@@ -1775,8 +1777,9 @@ short CMTComm::setSetting(const unsigned char mid,
 //
 //
 short CMTComm::setSetting(const unsigned char mid, const unsigned char param,
-						  const unsigned long value, const unsigned short valuelen,
-						  const unsigned char bid)
+						   const unsigned long value, 
+						   const unsigned short valuelen,
+						   const unsigned char bid)
 {
 	unsigned char buffer[MAXMSGLEN];
 	short msgLen;
@@ -1835,7 +1838,8 @@ short CMTComm::setSetting(const unsigned char mid, const unsigned char param,
 //	 = MTRV_RECVERRORMSG if an error message is received
 //	 = MTRV_TIMEOUT if timeout occurred
 //
-short CMTComm::setSetting(const unsigned char mid, const float value, const unsigned char bid)
+short CMTComm::setSetting(const unsigned char mid, const float value, 
+						   const unsigned char bid)
 {
 	unsigned char buffer[MAXMSGLEN];
 	short msgLen;
@@ -1890,7 +1894,8 @@ short CMTComm::setSetting(const unsigned char mid, const float value, const unsi
 //
 //
 short CMTComm::setSetting(const unsigned char mid, const unsigned char param,
-						  const float value, const unsigned char bid)
+						   const float value, 
+						   const unsigned char bid)
 {
 	unsigned char buffer[MAXMSGLEN];
 	short msgLen;
@@ -1953,7 +1958,9 @@ short CMTComm::setSetting(const unsigned char mid, const unsigned char param,
 //
 //
 short CMTComm::setSetting(const unsigned char mid, const unsigned char param,
-						  const float value, const bool store, const unsigned char bid)
+						   const float value,
+						   const bool store,
+						   const unsigned char bid)
 {
 	unsigned char buffer[MAXMSGLEN];
 	short msgLen;
@@ -2170,6 +2177,77 @@ short CMTComm::setDeviceMode(unsigned long OutputMode, unsigned long OutputSetti
 }
 
 ////////////////////////////////////////////////////////////////////
+// setDeviceSyncOut
+//
+// Sets the current syncOut setting of input (not for file-based 
+//   inputs)
+//
+// Input
+//	 SyncOutSettings : SyncOutSettings to be set in device & stored in 
+//						MTComm class member variable
+// Output
+//	
+//   returns MTRV_OK if the settings are read
+//
+short	CMTComm::setDeviceSyncOut(unsigned long SyncOutSettings, unsigned long SyncOutSkipFactor, unsigned long SyncOutOffset, unsigned long SyncOutPulseWidth, const unsigned char bid)
+{
+	// In case serial port is used (live XM / MT)
+	if (m_portOpen) {
+		// Set SyncOutSettings
+		if (setSetting(MID_SETSYNCOUTSETTINGS, PARAM_SYNCOUT_MODE, SyncOutSettings, LEN_SYNCOUTMODE, bid) != MTRV_OK) {
+			return m_retVal;
+		}
+		
+		// Set syncOut skip factor
+		if (setSetting(MID_SETSYNCOUTSETTINGS, PARAM_SYNCOUT_SKIPFACTOR, SyncOutSkipFactor, LEN_SYNCOUTSKIPFACTOR, bid) != MTRV_OK) {
+			return m_retVal;
+		}
+		
+		// Set syncOut offset time
+		if (setSetting(MID_SETSYNCOUTSETTINGS, PARAM_SYNCOUT_OFFSET, SyncOutOffset, LEN_SYNCOUTOFFSET, bid) != MTRV_OK) {
+			return m_retVal;
+		}
+		
+		// Set syncOut pulse width
+		if (setSetting(MID_SETSYNCOUTSETTINGS, PARAM_SYNCOUT_PULSEWIDTH, SyncOutPulseWidth, LEN_SYNCOUTPULSEWIDTH, bid) != MTRV_OK) {
+			return m_retVal;
+		}
+		
+		if (bid == BID_MASTER || (bid == BID_MT && m_storedSyncOutSettings[0] != OUTPUTMODE_XM)) {
+			m_storedSyncOutSettings[0] = m_storedSyncOutSettings[BID_MT] = SyncOutSettings;
+		}
+		else{
+			m_storedSyncOutSettings[bid] = SyncOutSettings;
+		}
+		
+		if (bid == BID_MASTER || (bid == BID_MT && m_storedSyncOutSkipFactor[0] != OUTPUTMODE_XM)) {
+			m_storedSyncOutSkipFactor[0] = m_storedSyncOutSkipFactor[BID_MT] = SyncOutSkipFactor;
+		}
+		else{
+			m_storedSyncOutSkipFactor[bid] = SyncOutSkipFactor;
+		}
+		
+		if (bid == BID_MASTER || (bid == BID_MT && m_storedSyncOutOffset[0] != OUTPUTMODE_XM)) {
+			m_storedSyncOutOffset[0] = m_storedSyncOutOffset[BID_MT] = SyncOutOffset;
+		}
+		else{
+			m_storedSyncOutOffset[bid] = SyncOutOffset;
+		}
+		
+		if (bid == BID_MASTER || (bid == BID_MT && m_storedSyncOutPulseWidth[0] != OUTPUTMODE_XM)) {
+			m_storedSyncOutPulseWidth[0] = m_storedSyncOutPulseWidth[BID_MT] = SyncOutPulseWidth;
+		}
+		else{
+			m_storedSyncOutPulseWidth[bid] = SyncOutPulseWidth;
+		}
+		
+		return (m_retVal = MTRV_OK);
+	}
+	return (m_retVal = MTRV_INVALIDFORFILEINPUT);
+}
+
+
+////////////////////////////////////////////////////////////////////
 // getMode
 //
 // Gets the output mode/setting used in MTComm class and the corresponding
@@ -2296,8 +2374,9 @@ short CMTComm::setMode(unsigned long OutputMode, unsigned long OutputSettings, c
 //    MTRV_OK		: value is successfully retrieved
 //	  != MTRV_OK	: not successful
 //
-short CMTComm::getValue(const unsigned long valueSpec, unsigned short &value, const unsigned char data[], 
-						const unsigned char bid)
+short CMTComm::getValue(const unsigned long valueSpec,  unsigned short &value, 
+							const unsigned char data[], 
+							const unsigned char bid)
 {
 	short offset = 0;
 	unsigned char nbid = bid;

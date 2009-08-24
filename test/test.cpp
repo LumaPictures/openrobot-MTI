@@ -16,11 +16,12 @@ int main(int argc, char *argv[])
 {
 	int  ch;
 	char *prog = argv[0];
-	static char *logFile=NULL;
+//	static char *logFile=NULL;
 	int verbose = 0;
 
-	int displayDataOutputFormat=0;
-	int _outputMode=0;
+	OutputMode _outputMode               = MTI_OPMODE_CALIBRATED;
+	OutputFormat displayDataOutputFormat = MTI_OPFORMAT_EULER;
+	SyncOutMode syncOutSettings          = MTI_SYNCOUTMODE_DISABLED;
 
 	printf("API inertial sensor - LAAS CNRS 2007\n");
 
@@ -29,21 +30,38 @@ int main(int argc, char *argv[])
 	{
 		switch (ch)
 		{
-			case 'd':// d : display data output format  : 	
-				// 1 - Calibrated data
-				// 2 - Orientation data
-				// 3 - Both Calibrated and Orientation data
-				displayDataOutputFormat = atoi(optarg);		
-				break;
-				break;
-
-			case 'o':// o : output mode :
+			case 'o':// d : display data output format  : 	
 				// 1 - Quaternions
 				// 2 - Euler angles
 				// 3 - Matrix
+				switch (atoi(optarg)) {
+					case 1:
+					displayDataOutputFormat = MTI_OPFORMAT_QUAT;		
+					break;
+					case 2:
+					displayDataOutputFormat = MTI_OPFORMAT_EULER;		
+					break;
+					case 3:
+					displayDataOutputFormat = MTI_OPFORMAT_MAT;		
+					break;
+				}
 
-				_outputMode = atoi(optarg);
-				break;
+			case 'd':// o : output mode :
+				// 1 - Calibrated data
+				// 2 - Orientation data
+				// 3 - Both Calibrated and Orientation data
+				switch (atoi(optarg)) {
+					case 1:
+						_outputMode = MTI_OPMODE_CALIBRATED;
+						break;
+					case 2:
+						_outputMode = MTI_OPMODE_ORIENTATION;
+						break;
+					case 3:
+						_outputMode = MTI_OPMODE_BOTH;
+						break;
+				}
+
 
 			case 'v':
 				verbose = 1;
@@ -64,7 +82,7 @@ int main(int argc, char *argv[])
 		exit(0);
 	}
 
-	MTI mti(argv[0], _outputMode, displayDataOutputFormat);	
+	MTI mti(argv[0], _outputMode, displayDataOutputFormat, syncOutSettings);	
 	INERTIAL_DATA data;
 
 	while (1) {

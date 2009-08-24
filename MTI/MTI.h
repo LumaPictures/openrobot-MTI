@@ -10,15 +10,29 @@ class MTI {
 		const char * device;
 		int mode;
 		int outputDisplay;
+		int syncOutMode;
+		int syncOutPulsePolarity;
+		int syncOutSkipFactor;
+		int syncOutOffset;
+		int syncOutPulseWidth;
 		CMTComm mtcomm;
 		bool connected;
 
-		bool _set_mode(int mode_);
-		bool _set_outputDisplay(int outputDisplay_);
+		bool _set_mode(OutputMode mode_);
+		bool _set_outputDisplay(OutputFormat outputDisplay_);
+		bool _set_syncOut(SyncOutMode syncOutMode_                   = MTI_SYNCOUTMODE_PULSE,
+				  SyncOutPulsePolarity syncOutPulsePolarity_ = MTI_SYNCOUTPULSE_POS,
+				  int syncOutSkipFactor_    = 0, // output all pulses
+				  int syncOutOffset_        = 0, // pulse at acq. time
+				  int syncOutPulseWidth_    = 2040); // 69.156us pulse
 		bool _configure_device();
+		bool _reset();
 
 	public:
-		MTI(const char *dev_, int mode_, int outputDisplay_);
+		MTI(const char *dev_, 
+		    OutputMode mode_, 
+		    OutputFormat outputDisplay_, 
+		    SyncOutMode syncOutMode_ = MTI_SYNCOUTMODE_DISABLED);
 		~MTI();
 
 		bool connect();
@@ -27,10 +41,18 @@ class MTI {
 
 		bool is_connected() { return connected; };
 
-		bool set_mode(int mode_);
-		bool set_outputDisplay(int outputDisplay_);
-
+		bool set_mode(OutputMode mode_);
+		
+		bool set_outputDisplay(OutputFormat outputDisplay_);
+		
+		bool set_syncOut(SyncOutMode          syncOutMode_, 
+				 SyncOutPulsePolarity syncOutPulsePolarity_, 
+				 int syncOutSkipFactor_,
+				 int syncOutOffset_,
+				 int syncOutPulseWidth_);
+				 
 		bool read(INERTIAL_DATA * output, bool verbose=false);
+		bool reset();
 };
 
 #endif

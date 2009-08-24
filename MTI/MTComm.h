@@ -240,9 +240,9 @@ int startMTI(int argc, char *argv[]);
 
 #define MID_REQSYNCOUTSETTINGS		(const unsigned char)0xD8
 #define MID_REQSYNCOUTSETTINGSACK	(const unsigned char)0xD9
-#define LEN_SYNCOUTMODE				(const unsigned short)2
+#define LEN_SYNCOUTMODE			(const unsigned short)2
 #define LEN_SYNCOUTSKIPFACTOR		(const unsigned short)2
-#define LEN_SYNCOUTOFFSET			(const unsigned short)4
+#define LEN_SYNCOUTOFFSET		(const unsigned short)4
 #define LEN_SYNCOUTPULSEWIDTH		(const unsigned short)4
 #define MID_SETSYNCOUTSETTINGS		(const unsigned char)0xD8
 #define MID_SETSYNCOUTSETTINGSACK	(const unsigned char)0xD9
@@ -779,7 +779,7 @@ int startMTI(int argc, char *argv[]);
 #define OUTPUTSETTINGS_XM						0x00000001
 #define OUTPUTSETTINGS_TIMESTAMP_NONE			0x00000000
 #define OUTPUTSETTINGS_TIMESTAMP_SAMPLECNT		0x00000001
-#define OUTPUTSETTINGS_ORIENTMODE_QUATERNION	0x00000000
+#define OUTPUTSETTINGS_ORIENTMODE_QUATERNION		0x00000000
 #define OUTPUTSETTINGS_ORIENTMODE_EULER			0x00000004
 #define OUTPUTSETTINGS_ORIENTMODE_MATRIX		0x00000008
 #define OUTPUTSETTINGS_CALIBMODE_ACCGYRMAG		0x00000000
@@ -914,7 +914,7 @@ public:
 	bool	isPortOpen();
 	bool	isFileOpen();
 	int     readData(unsigned char* msgBuffer, const int nBytesToRead);
-	int		writeData(const unsigned char* msgBuffer, const int nBytesToWrite);
+	int	writeData(const unsigned char* msgBuffer, const int nBytesToWrite);
 	void	flush();
 	void	escape(unsigned long function);
 	void	setPortQueueSize(const unsigned long inqueueSize = 4096, const unsigned long outqueueSize = 1024);
@@ -927,49 +927,69 @@ public:
 	short	readDataMessage(unsigned char data[], short &dataLen);
 	short	readMessageRaw(unsigned char *msgBuffer, short *msgBufferLength);
 	short	writeMessage(const unsigned char mid, const unsigned long dataValue = 0, 
-						  const unsigned char dataValueLen = 0, const unsigned char bid = BID_MASTER);
+						      const unsigned char dataValueLen = 0, 
+						      const unsigned char bid = BID_MASTER);
 	short   writeMessage(const unsigned char mid, const unsigned char data[], 
-							   const unsigned short &dataLen, const unsigned char bid = BID_MASTER);
+						      const unsigned short &dataLen, 
+						      const unsigned char bid = BID_MASTER);
 	short	waitForMessage(const unsigned char mid, unsigned char data[] = NULL, short *dataLen = NULL, unsigned char *bid = NULL);
 
 	// Request & set setting functions
 	short	reqSetting(const unsigned char mid, unsigned long &value, const unsigned char bid = BID_MASTER);
 	short	reqSetting(const unsigned char mid, const unsigned char param, unsigned long &value,  
-							  const unsigned char bid = BID_MASTER);
+						    const unsigned char bid = BID_MASTER);
 	short	reqSetting(const unsigned char mid, float &value, const unsigned char bid = BID_MASTER);
 	short	reqSetting(const unsigned char mid, const unsigned char param, float &value,
-							  const unsigned char bid = BID_MASTER);
-	short	reqSetting(const unsigned char mid, 
-							  unsigned char data[], short &dataLen, const unsigned char bid = BID_MASTER);
-	short	reqSetting(const unsigned char mid,
-							  unsigned char dataIn[], short dataInLen,
-							  unsigned char dataOut[], short &dataOutLen, 
-							  const unsigned char bid = BID_MASTER);
+						    const unsigned char bid = BID_MASTER);
+	short	reqSetting(const unsigned char mid, unsigned char data[], short &dataLen, const unsigned char bid = BID_MASTER);
+	short	reqSetting(const unsigned char mid, unsigned char dataIn[], short dataInLen,
+						    unsigned char dataOut[], short &dataOutLen, 
+						    const unsigned char bid = BID_MASTER);
 	short	reqSetting(const unsigned char mid, const unsigned char param, 
-							  unsigned char data[], short &dataLen, const unsigned char bid = BID_MASTER);
-	short	setSetting(const unsigned char mid,
-							  const unsigned long value, const unsigned short valuelen,
-							  const unsigned char bid = BID_MASTER);
+						    unsigned char data[], short &dataLen, const unsigned char bid = BID_MASTER);
+	
+	short	setSetting(const unsigned char mid, const unsigned long value, 
+						    const unsigned short valuelen,
+						    const unsigned char bid = BID_MASTER);
 	short	setSetting(const unsigned char mid, const unsigned char param,
-							  const unsigned long value, const unsigned short valuelen,
-							  const unsigned char bid = BID_MASTER);
-	short	setSetting(const unsigned char mid, const float value, const unsigned char bid = BID_MASTER);
+						    const unsigned long value, 
+						    const unsigned short valuelen,
+						    const unsigned char bid = BID_MASTER);
+	short	setSetting(const unsigned char mid, const float value, 
+						    const unsigned char bid = BID_MASTER);
 	short	setSetting(const unsigned char mid, const unsigned char param,
-							  const float value, const unsigned char bid = BID_MASTER);
+						    const float value, 
+						    const unsigned char bid = BID_MASTER);
 	short	setSetting(const unsigned char mid, const unsigned char param,
-							  const float value, const bool store, const unsigned char bid = BID_MASTER);
+						    const float value, 
+						    const bool store, 
+						    const unsigned char bid = BID_MASTER);
+	
 	// Data-related functions
 	short	getDeviceMode(unsigned short *numDevices = NULL);
 	short	setDeviceMode(unsigned long OutputMode, unsigned long OutputSettings, const unsigned char bid = BID_MASTER);
-	short	getMode(unsigned long &OutputMode, unsigned long &OutputSettings, unsigned short &dataLength, 
-					  const unsigned char bid = BID_MASTER);
+	short	setDeviceSyncOut(unsigned long SyncOutMode, 
+				 unsigned long syncOutSkipFactor, 
+				 unsigned long syncOutOffset, 
+				 unsigned long syncOutPulseWidth, 
+				 const unsigned char bid = BID_MASTER);
+	short	getMode(unsigned long &OutputMode, 
+			unsigned long &OutputSettings, 
+			unsigned short &dataLength, 
+			const unsigned char bid = BID_MASTER);
 	short	setMode(unsigned long OutputMode, unsigned long OutputSettings, const unsigned char bid = BID_MASTER);
-	short	getValue(const unsigned long valueSpec, unsigned short &value, const unsigned char data[], 
-					   const unsigned char bid = BID_MT);
-	short	getValue(const unsigned long valueSpec, unsigned short value[], const unsigned char data[], 
-					   const unsigned char bid = BID_MT);
-	short	getValue(const unsigned long valueSpec, float value[], const unsigned char data[], 
-					   const unsigned char bid = BID_MT);
+	short	getValue(const unsigned long valueSpec, 
+			 unsigned short &value, 
+			 const unsigned char data[], 
+			 const unsigned char bid = BID_MT);
+	short	getValue(const unsigned long valueSpec, 
+			 unsigned short value[], 
+			 const unsigned char data[], 
+			 const unsigned char bid = BID_MT);
+	short	getValue(const unsigned long valueSpec, 
+			 float value[], 
+			 const unsigned char data[], 
+			 const unsigned char bid = BID_MT);
 
 	// Generic MTComm functions
 	short	getLastDeviceError();
@@ -983,7 +1003,7 @@ protected:
 #ifdef WIN32
 	HANDLE	m_handle;
 #else
-	int		m_handle;
+	int	m_handle;
 #endif
 	bool	m_portOpen;
 	bool	m_fileOpen;
@@ -997,9 +1017,15 @@ protected:
 	unsigned long	m_storedOutputSettings[MAXDEVICES+1];
 	unsigned long	m_storedDataLength[MAXDEVICES+1];
 
+	// SyncOut Settings for connected devices + 1 for master
+	unsigned long	m_storedSyncOutSettings[MAXDEVICES+1];
+	unsigned long	m_storedSyncOutSkipFactor[MAXDEVICES+1];
+	unsigned long	m_storedSyncOutOffset[MAXDEVICES+1];
+	unsigned long	m_storedSyncOutPulseWidth[MAXDEVICES+1];
+
 	// Temporary buffer for excess bytes read in ReadMessageRaw
 	unsigned char	m_tempBuffer[MAXMSGLEN];
-	int				m_nTempBufferLen;
+	int		m_nTempBufferLen;
 
 private:
 };

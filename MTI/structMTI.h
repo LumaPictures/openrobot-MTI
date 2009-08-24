@@ -1,33 +1,66 @@
 
-// Contient toutes les données à poster utilisées
+// Contient toutes les donnï¿½es ï¿½ poster utilisï¿½es
 // par GENOM
 
 #ifndef STRUCT_MTI_H
 #define STRUCT_MTI_H
 
+typedef enum OutputMode {
+	MTI_OPMODE_CALIBRATED  = 0x02, 
+	MTI_OPMODE_ORIENTATION = 0x04, 
+	MTI_OPMODE_BOTH        = 0x06
+} OutputMode;
+
+typedef enum OutputFormat {
+	MTI_OPFORMAT_QUAT  = 0x00,
+	MTI_OPFORMAT_EULER = 0x04,
+	MTI_OPFORMAT_MAT   = 0x08
+} OutputFormat;
+
+typedef enum SyncOutMode {
+	MTI_SYNCOUTMODE_DISABLED = 0,
+	MTI_SYNCOUTMODE_TOGGLE   = 1,
+	MTI_SYNCOUTMODE_PULSE    = 2
+} SyncOutMode;
+
+typedef enum SyncOutPulsePolarity {
+	MTI_SYNCOUTPULSE_NEG = 0x00,
+	MTI_SYNCOUTPULSE_POS = 0x16
+} SyncOutPulsePolarity;
+
+typedef struct INERTIAL_DEVICE
+{
+  char device[24]; // dev/ttyS0 par exemple
+} INERTIAL_DEVICE;
+
+
 typedef struct INERTIAL_CONFIG
 {
+  OutputMode   outputMode;
+  OutputFormat outputFormat; 
+
+  SyncOutMode          syncOutMode;
+  SyncOutPulsePolarity syncOutPulsePolarity;
+
+  // number of acquisitions per syncOut marks
+  int syncOutSkipFactor;
   
-  char device[24]; // dev/ttyS0 par exemple
-
-// 1 - Calibrated data
-// 2 - Orientation data\n");
-// 3 - Both Calibrated and Orientation data\n
-  int mode;
-
-// 1 - Quaternions
-// 2 - Euler angles
-// 3 - Matrix
-  int outputMode; 
+  // number of clock ticks @ 33.9ns
+  int syncOutOffset;
+  
+  // number of clock ticks @ 33.9ns
+  int syncOutPulseWidth;
+  
 } INERTIAL_CONFIG;
 
-  
+
 typedef struct INERTIAL_DATA
 {
-  float ACC[4];
-  float GYR[4];
-  float MAG[4];
-  float EULER[4];
+  float ACC[3];
+  float GYR[3];
+  float MAG[3];
+  float EULER[3];
+  int   COUNT;
 } INERTIAL_DATA;
 
 /* AVERAGING_PARAMETERS is used to average the values on the roll and pitch

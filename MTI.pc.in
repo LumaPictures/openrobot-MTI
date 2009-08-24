@@ -6,6 +6,6 @@ includedir=@includedir@
 Name: @PACKAGE_NAME@
 Description: MTI API 
 Version: @PACKAGE_VERSION@
-Libs: -L${libdir} -lMTI
+Libs: -Wl,-R${libdir} -L${libdir} -lMTI
 Cflags: -I${includedir}
 
