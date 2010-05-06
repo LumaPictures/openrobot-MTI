@@ -21,8 +21,8 @@ depend:
 	done
 
 install:: MTI-clients.pc
-	$(MKINSTALLDIRS) $(LIBDIR)/pkgconfig
-	$(INSTALL) MTI-clients.pc $(LIBDIR)/pkgconfig
+	$(MKINSTALLDIRS) $(DESTDIR)$(LIBDIR)/pkgconfig
+	$(INSTALL) MTI-clients.pc $(DESTDIR)$(LIBDIR)/pkgconfig
 
 install::
 	@for d in $(SUBDIRS); do \

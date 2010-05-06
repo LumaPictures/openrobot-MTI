@@ -32,9 +32,9 @@ files=MTComm.h MTI.h structMTI.h
 all clean depend:
 
 install:
-	$(MKINSTALLDIRS) $(INCLUDEDIR)
+	$(MKINSTALLDIRS) $(DESTDIR)$(INCLUDEDIR)
 	@for f in $(files); do \
-		c="$(INSTALL_DATA) $(srcdir)/$$f $(INCLUDEDIR)/$$f"; \
+		c="$(INSTALL_DATA) $(srcdir)/$$f $(DESTDIR)$(INCLUDEDIR)/$$f"; \
 		echo $$c; $$c; \
 	done
 

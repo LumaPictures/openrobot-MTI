@@ -68,7 +68,7 @@ distclean: clean
 	rm -f DEPENDANCES Makefile
 
 install: $(PROG)
-	$(MKINSTALLDIRS) $(BINDIR)
-	$(LIBTOOL) --mode=install $(INSTALL) $(PROG) $(BINDIR)
+	$(MKINSTALLDIRS) $(DESTDIR)$(BINDIR)
+	$(LIBTOOL) --mode=install $(INSTALL) $(PROG) $(DESTDIR)$(BINDIR)
 
 include DEPENDANCES
