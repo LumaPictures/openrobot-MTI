@@ -28,6 +28,8 @@ LIBDIR=		@libdir@
 MKDEP=		@MKDEP@
 CC=		@CC@
 CXX=		@CXX@
+LDFLAGS=	@LDFLAGS@
+CFLAGS=		@CFLAGS@
 LIBTOOL=	@LIBTOOL@
 INSTALL=	@INSTALL@
 MKINSTALLDIRS=	/bin/sh ${top_srcdir}/mkinstalldirs
@@ -50,8 +52,8 @@ PROG=		MTIHardTest
 all: $(PROG)
 
 $(PROG): $(OBJS)
-	$(LIBTOOL) --mode=link $(CXX) -o $@ $(OBJS) -rpath $(LIBDIR) \
-	-L../src -lMTI -lrt
+	$(LIBTOOL) --mode=link $(CXX) $(LDFLAGS) -o $@ $(OBJS) \
+	-rpath $(LIBDIR) -L../src -lMTI -lrt
 
 %.lo: %.cpp
 	$(LIBTOOL) --mode=compile $(CXX) -c $(CPPFLAGS) $(CFLAGS) $<

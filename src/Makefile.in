@@ -28,6 +28,8 @@ INCLUDEDIR=	@includedir@
 MKDEP=		@MKDEP@
 CC=		@CC@
 CXX=		@CXX@
+CFLAGS=		@CFLAGS@
+LDFLAGS=	@LDFLAGS@
 LIBTOOL=	@LIBTOOL@
 INSTALL=	@INSTALL@
 MKINSTALLDIRS=	/bin/sh ${top_srcdir}/mkinstalldirs
@@ -53,7 +55,8 @@ LIB=		libMTI.la
 all: $(LIB)
 
 $(LIB): $(OBJS)
-	$(LIBTOOL) --mode=link $(CXX) -o $@ $(OBJS) -rpath $(LIBDIR) \
+	$(LIBTOOL) --mode=link $(CXX) $(LDFLAGS) -o $@ $(OBJS) \
+	-rpath $(LIBDIR) \
 	-version-info $(SHLIB_MAJOR):$(SHLIB_MINOR):$(SHLIB_TINY) 
 
 %.lo: %.cpp
