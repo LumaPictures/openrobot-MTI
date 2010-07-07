@@ -101,6 +101,8 @@ int startMTI(int argc, char *argv[]);
 #else
 #include <fcntl.h>     	/* POSIX Standard: 6.5 File Control Operations     */
 #include <termios.h>   	/* terminal i/o system, talks to /dev/tty* ports  */
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>		/* Read function */
 #include <sys/time.h>	/* gettimeofday function */
 #endif
