@@ -30,7 +30,7 @@ MTI::MTI(const char * dev_,
 	 OutputMode mode_, 
 	 OutputFormat outputDisplay_, 
 	 SyncOutMode syncOutMode_):
-	device(dev_), mode(MTI_OPMODE_CALIBRATED), outputDisplay(MTI_OPFORMAT_EULER), mtcomm(), connected(false) 
+	device(dev_), mode(MTI_OPMODE_CALIBRATED), outputDisplay(MTI_OPFORMAT_EULER), outputSkipFactor(0), mtcomm(), connected(false),
 {
 	_set_mode(mode_);
 	_set_outputDisplay(outputDisplay_);
@@ -141,6 +141,14 @@ bool MTI::_set_syncOut( SyncOutMode          syncOutMode_          ,
 	return true;
 }
 
+bool MTI::_set_outputSkipFactor(int factor)
+{
+	if (factor < 0) return false;
+	outputSkipFactor = factor;
+	return true;
+}
+
+
 bool MTI::set_syncOut(  SyncOutMode syncOutMode_          ,
 			SyncOutPulsePolarity syncOutPulsePolarity_ ,
 			int syncOutSkipFactor_    ,
@@ -164,6 +172,12 @@ bool MTI::set_outputDisplay(OutputFormat outputDisplay_)
 {
 	return (_set_outputDisplay(outputDisplay_) && _configure_device());
 }
+
+bool MTI::set_outputSkipFactor(int factor)
+{
+	return (_set_outputSkipFactor(factor) && _configure_device());
+}
+
 
 bool MTI::_configure_device()
 {
@@ -222,6 +236,15 @@ bool MTI::_configure_device()
 		}
 	}
 	
+	// Set outputSkipFactor Settings for each attached MTi
+	for (int i = 0; i<numDevices; i++)
+	{
+		if (mtcomm.setSetting(MID_SETOUTPUTSKIPFACTOR, outputSkipFactor, LEN_OUTPUTSKIPFACTOR, BID_MT + i) != MTRV_OK)
+		{
+			std::cerr << "Could not set (all) device outputSkipFactor setting(s)" << std::endl;
+			return false;
+		}
+	}
 
 	// Put MTi/MTx in Measurement State
 	mtcomm.writeMessage(MID_GOTOMEASUREMENT);

@@ -15,6 +15,7 @@ class MTI {
 		int syncOutSkipFactor;
 		int syncOutOffset;
 		int syncOutPulseWidth;
+		int outputSkipFactor;
 		CMTComm mtcomm;
 		bool connected;
 
@@ -25,6 +26,7 @@ class MTI {
 				  int syncOutSkipFactor_    = 0, // output all pulses
 				  int syncOutOffset_        = 0, // pulse at acq. time
 				  int syncOutPulseWidth_    = 2040); // 69.156us pulse
+		bool _set_outputSkipFactor(int factor);
 		bool _configure_device();
 		bool _reset();
 
@@ -50,6 +52,7 @@ class MTI {
 				 int syncOutSkipFactor_,
 				 int syncOutOffset_,
 				 int syncOutPulseWidth_);
+		bool set_outputSkipFactor(int factor);
 				 
 		bool read(INERTIAL_DATA * output, bool verbose=false);
 		bool reset();
