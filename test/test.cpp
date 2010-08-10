@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
 	{
 		switch (ch)
 		{
-			case 'o':// d : display data output format  : 	
+			case 'o':// o : output mode :
 				// 1 - Quaternions
 				// 2 - Euler angles
 				// 3 - Matrix
@@ -45,8 +45,9 @@ int main(int argc, char *argv[])
 					displayDataOutputFormat = MTI_OPFORMAT_MAT;		
 					break;
 				}
+				break;
 
-			case 'd':// o : output mode :
+			case 'd':// d : display data output format  :
 				// 1 - Calibrated data
 				// 2 - Orientation data
 				// 3 - Both Calibrated and Orientation data
@@ -61,6 +62,7 @@ int main(int argc, char *argv[])
 						_outputMode = MTI_OPMODE_BOTH;
 						break;
 				}
+				break;
 
 
 			case 'v':
@@ -82,10 +84,10 @@ int main(int argc, char *argv[])
 		exit(0);
 	}
 
-	MTI mti(argv[0], _outputMode, displayDataOutputFormat, syncOutSettings);	
+	MTI mti(argv[0], _outputMode, displayDataOutputFormat, syncOutSettings);
 	INERTIAL_DATA data;
-
+	
 	while (1) {
-		mti.read(&data, true);
+		mti.read(&data, verbose);
 	}
 }
