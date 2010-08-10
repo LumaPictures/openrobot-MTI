@@ -39,6 +39,7 @@ MTI::MTI(const char * dev_,
 	 OutputFormat outputDisplay_, 
 	 SyncOutMode syncOutMode_):
 	device(dev_), mode(MTI_OPMODE_CALIBRATED), outputDisplay(MTI_OPFORMAT_EULER), outputSkipFactor(0), mtcomm(), connected(false),
+	pte(10e-3, 6000, 0.0002)
 {
 	baudrate_enum = PBR_115K2;
 	baudrate = 115200;
@@ -297,8 +298,13 @@ bool MTI::read(INERTIAL_DATA * output, bool verbose)
 		date -= delay;
 		output->TIMESTAMP_UNDELAYED = date;
 		
+		int nperiods = samplecounter - output->COUNT;
+		if (nperiods < 0) nperiods += 65536;
+		date = pte.estimate(date, nperiods, delay);
+		
 		msgHorodatage = convertHorodatageToString(date);
 		output->COUNT = samplecounter;		 
+		output->TIMESTAMP_FILTERED = date;
 		
 		output->TIMESTAMP = output->TIMESTAMP_UNDELAYED;
 		

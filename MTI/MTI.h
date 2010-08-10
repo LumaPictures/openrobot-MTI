@@ -4,6 +4,7 @@
 
 #include "structMTI.h"
 #include "MTComm.h"
+#include "periodicTimestampEstimator.h"
 
 class MTI {
 	private:
@@ -21,6 +22,7 @@ class MTI {
 		unsigned long baudrate_enum;
 		unsigned baudrate;
 		double timestamp_delay;
+		PeriodicTimestampEstimator pte;
 
 		bool _set_mode(OutputMode mode_);
 		bool _set_outputDisplay(OutputFormat outputDisplay_);

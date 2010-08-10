@@ -64,6 +64,7 @@ typedef struct INERTIAL_DATA
   double TIMESTAMP; ///< the default timestamp, equal to one of the three below, depending on their maturity
   double TIMESTAMP_RAW; ///< the timestamp taken at reception of data
   double TIMESTAMP_UNDELAYED; ///< the timestamp_raw with delay introduced by MTI processing and serial communication corrected
+  double TIMESTAMP_FILTERED; ///< the timestamp_undelayed with precise period and offset estimated to offer still more precision and regularity
 } INERTIAL_DATA;
 
 /* AVERAGING_PARAMETERS is used to average the values on the roll and pitch
