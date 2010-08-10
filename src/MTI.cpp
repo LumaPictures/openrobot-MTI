@@ -12,19 +12,27 @@
 #include "MTI/MTI.h"
 
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <sstream>
 
-static std::string getHorodatage()
+static double getHorodatage()
 {
-  struct timespec Timespec;
-  std::ostringstream oss;
+	struct timespec ts;
+	std::ostringstream oss;
 
-  clock_gettime(CLOCK_REALTIME,&Timespec);
+	clock_gettime(CLOCK_REALTIME,&ts);
 
-  oss << Timespec.tv_sec << "." << Timespec.tv_nsec;
-  return oss.str();
+	return ts.tv_sec + ts.tv_nsec*1e-9;
 }
+
+static std::string convertHorodatageToString(double t)
+{
+	std::ostringstream oss;
+	oss << std::setprecision(19) << t;
+	return oss.str();
+}
+
 
 MTI::MTI(const char * dev_, 
 	 OutputMode mode_, 
@@ -32,6 +40,9 @@ MTI::MTI(const char * dev_,
 	 SyncOutMode syncOutMode_):
 	device(dev_), mode(MTI_OPMODE_CALIBRATED), outputDisplay(MTI_OPFORMAT_EULER), outputSkipFactor(0), mtcomm(), connected(false),
 {
+	baudrate_enum = PBR_115K2;
+	baudrate = 115200;
+	
 	_set_mode(mode_);
 	_set_outputDisplay(outputDisplay_);
 	_set_syncOut(syncOutMode_);
@@ -48,7 +59,7 @@ MTI::~MTI()
 bool MTI::connect()
 {
 	if (!connected) {
-		if (mtcomm.openPort(device) != MTRV_OK) {
+		if (mtcomm.openPort(device, baudrate_enum) != MTRV_OK) {
 			std::cerr << "MTI: Can't open " << device << std::endl;
 			return false;
 		} else {
@@ -84,12 +95,15 @@ bool MTI::_set_mode(OutputMode mode_)
 	switch (mode_) {
 		case MTI_OPMODE_CALIBRATED:
 			std::cout << "MTI: Calibrated output." << mode_ << std::endl;
+			timestamp_delay = 0.31e-3; // cf section 5.4 of MTi and MTx User Manual and Technical Documentation
 			break;
 		case MTI_OPMODE_ORIENTATION:
 			std::cout << "MTI: Orientation output." << mode_ << std::endl;
+			timestamp_delay = 2.55e-3; // cf section 5.4 of MTi and MTx User Manual and Technical Documentation
 			break;
 		case MTI_OPMODE_BOTH:
 			std::cout << "MTI: Calibrated and orientation outputs." << mode_ << std::endl;
+			timestamp_delay = 2.55e-3; // cf section 5.4 of MTi and MTx User Manual and Technical Documentation
 			break;
 		default:
 			return false;
@@ -272,18 +286,31 @@ bool MTI::read(INERTIAL_DATA * output, bool verbose)
 	///////////////////////////////////////////////////
 	if(mtcomm.readDataMessage(data, datalen) == MTRV_OK)
 	{
-		unsigned short samplecounter;
 		// get real time clock
-		msgHorodatage = getHorodatage();
+		double date = getHorodatage();
+		output->TIMESTAMP_RAW = date;
+		
+		unsigned short samplecounter;
 		mtcomm.getValue(VALUE_SAMPLECNT, samplecounter, data, BID_MASTER);      
-		output->COUNT = samplecounter;		 
 
+		double delay = timestamp_delay + (datalen*8.)/baudrate;
+		date -= delay;
+		output->TIMESTAMP_UNDELAYED = date;
+		
+		msgHorodatage = convertHorodatageToString(date);
+		output->COUNT = samplecounter;		 
+		
+		output->TIMESTAMP = output->TIMESTAMP_UNDELAYED;
+		
+		if (verbose)
+			std::cout << msgHorodatage;
+		
 		if ((mode & OUTPUTMODE_CALIB) != 0)
 		{
 			// ACC		  
 			mtcomm.getValue(VALUE_CALIB_ACC, fdata, data, BID_MT);	
 			if (verbose)
-				std::cout << "ACC " << msgHorodatage << " " << fdata[0] << " " << fdata[1] << " " << fdata[2] << std::endl;
+				std::cout << "\tACC\t" << fdata[0] << "\t" << fdata[1] << "\t" << fdata[2];
 
 			output->ACC[0]=fdata[0];
 			output->ACC[1]=fdata[1];
@@ -292,7 +319,7 @@ bool MTI::read(INERTIAL_DATA * output, bool verbose)
 			// GYR		  		    
 			mtcomm.getValue(VALUE_CALIB_GYR, fdata, data, BID_MT);
 			if (verbose)
-				std::cout << "GYR " << msgHorodatage << " " << fdata[0] << " " << fdata[1] << " " << fdata[2] << std::endl;
+				std::cout << "\tGYR\t" << fdata[0] << "\t" << fdata[1] << "\t" << fdata[2];
 
 			output->GYR[0]=fdata[0];
 			output->GYR[1]=fdata[1];
@@ -301,7 +328,7 @@ bool MTI::read(INERTIAL_DATA * output, bool verbose)
 			// MAGN
 			mtcomm.getValue(VALUE_CALIB_MAG, fdata, data, BID_MT);	
 			if (verbose)
-				std::cout << "MAG " << msgHorodatage << " " << fdata[0] << " " << fdata[1] << " " << fdata[2] << std::endl;
+				std::cout << "\tMAG\t" << fdata[0] << "\t" << fdata[1] << "\t" << fdata[2];
 
 			output->MAG[0]=fdata[0];
 			output->MAG[1]=fdata[1];
@@ -316,7 +343,7 @@ bool MTI::read(INERTIAL_DATA * output, bool verbose)
 					// Output: quaternion
 					mtcomm.getValue(VALUE_ORIENT_QUAT, fdata, data, BID_MT);
 					if (verbose)
-						std::cout << fdata[0] << "\t" << fdata[1] << "\t" << fdata[2] << "\t" << fdata[3] << std::endl;
+						std::cout << "\tQUAT\t" << fdata[0] << "\t" << fdata[1] << "\t" << fdata[2] << "\t" << fdata[3];
 					break;
 
 				case OUTPUTSETTINGS_ORIENTMODE_EULER:
@@ -324,21 +351,21 @@ bool MTI::read(INERTIAL_DATA * output, bool verbose)
 					msgHorodatage = getHorodatage();
  					mtcomm.getValue(VALUE_ORIENT_EULER, fdata, data, BID_MT);	
 					if (verbose)
-						std::cout << "EUL " << msgHorodatage << " " << fdata[0] << " " << fdata[1] << " " << fdata[2] << std::endl;
+						std::cout << "\tEUL\t" << fdata[0] << "\t" << fdata[1] << "\t" << fdata[2];
 
 					// lien avec le poster de GENOM
 					output->EULER[0]=fdata[0];
 					output->EULER[1]=fdata[1];
-					output->EULER[2]=fdata[2];		  		  		    
+					output->EULER[2]=fdata[2];
 					break;
 
 				case OUTPUTSETTINGS_ORIENTMODE_MATRIX:
 					// Output: Cosine Matrix
 					mtcomm.getValue(VALUE_ORIENT_MATRIX, fdata, data, BID_MT);
 					if (verbose) {
-						std::cout << fdata[0] << "\t" << fdata[1] << "\t" << fdata[2] << std::endl;
-						std::cout << fdata[3] << "\t" << fdata[4] << "\t" << fdata[5] << std::endl;
-						std::cout << fdata[6] << "\t" << fdata[7] << "\t" << fdata[8] << std::endl;
+						std::cout << "\tMAT\t" << fdata[0] << "\t" << fdata[1] << "\t" << fdata[2]
+							<< "\t" << fdata[3] << "\t" << fdata[4] << "\t" << fdata[5]
+							<< "\t" << fdata[6] << "\t" << fdata[7] << "\t" << fdata[8];
 					}
 					break;
 
@@ -346,6 +373,8 @@ bool MTI::read(INERTIAL_DATA * output, bool verbose)
 					;
 			}// end switch
 		} // endif	
+		if (verbose)
+			std::cout << std::endl;
 	} //endif check read data
 	else // display error on read buffer
 	{

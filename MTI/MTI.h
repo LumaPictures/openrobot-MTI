@@ -18,6 +18,9 @@ class MTI {
 		int outputSkipFactor;
 		CMTComm mtcomm;
 		bool connected;
+		unsigned long baudrate_enum;
+		unsigned baudrate;
+		double timestamp_delay;
 
 		bool _set_mode(OutputMode mode_);
 		bool _set_outputDisplay(OutputFormat outputDisplay_);
