@@ -300,13 +300,13 @@ bool MTI::read(INERTIAL_DATA * output, bool verbose)
 		
 		int nperiods = samplecounter - output->COUNT;
 		if (nperiods < 0) nperiods += 65536;
-		date = pte.estimate(date, nperiods, delay);
+		date = pte.estimate(output->TIMESTAMP_RAW, nperiods, delay);
 		
-		msgHorodatage = convertHorodatageToString(date);
 		output->COUNT = samplecounter;		 
 		output->TIMESTAMP_FILTERED = date;
 		
 		output->TIMESTAMP = output->TIMESTAMP_UNDELAYED;
+		msgHorodatage = convertHorodatageToString(output->TIMESTAMP);
 		
 		if (verbose)
 			std::cout << msgHorodatage;
