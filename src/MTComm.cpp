@@ -83,6 +83,8 @@
 #include "MTI/MTComm.h"
 
 #include <iostream>
+#include <sys/stat.h>
+
 
 #ifdef _DEBUG
 #undef THIS_FILE

@@ -82,5 +82,12 @@ typedef struct MTI_BIASES
   double	rollBias;	/* In degrees */
 } MTI_BIASES;
 
+typedef struct MTI_TRIGGER
+{
+  double	frequency; /* in Hz */
+  double	shutter;	/* in ms */
+} MTI_TRIGGER;
+
+
 
 #endif
