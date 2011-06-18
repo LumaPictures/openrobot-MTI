@@ -39,7 +39,7 @@ MTI::MTI(const char * dev_,
 	 OutputFormat outputDisplay_, 
 	 SyncOutMode syncOutMode_):
 	device(dev_), mode(MTI_OPMODE_CALIBRATED), outputDisplay(MTI_OPFORMAT_EULER), outputSkipFactor(0), mtcomm(), connected(false),
-	pte(10e-3, 6000, 0.0002)
+	pte(10e-3, 6000, 0.0002), emptied_buffers(false)
 {
 	baudrate_enum = PBR_115K2;
 	baudrate = 115200;
@@ -285,10 +285,25 @@ bool MTI::read(INERTIAL_DATA * output, bool verbose)
 	// read inertial sensor and get data
 	//
 	///////////////////////////////////////////////////
-	if(mtcomm.readDataMessage(data, datalen) == MTRV_OK)
+	double date, prev_date;
+	int res;
+	if (!emptied_buffers) prev_date = getHorodatage();
+	if((res = mtcomm.readDataMessage(data, datalen)) == MTRV_OK)
 	{
 		// get real time clock
-		double date = getHorodatage();
+		date = getHorodatage();
+
+		if (!emptied_buffers)
+		{
+			while (true)
+			{
+				if (date-prev_date > 0.002 && res == MTRV_OK) { emptied_buffers = true; break; }
+				prev_date = date;
+				res = mtcomm.readDataMessage(data, datalen);
+				date = getHorodatage();
+			}
+		}
+
 		output->TIMESTAMP_RAW = date;
 		
 		unsigned short samplecounter;

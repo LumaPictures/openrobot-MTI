@@ -23,6 +23,7 @@ class MTI {
 		unsigned baudrate;
 		double timestamp_delay;
 		PeriodicTimestampEstimator pte;
+		bool emptied_buffers;
 
 		bool _set_mode(OutputMode mode_);
 		bool _set_outputDisplay(OutputFormat outputDisplay_);
