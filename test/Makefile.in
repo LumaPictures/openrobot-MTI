@@ -36,6 +36,12 @@ MKINSTALLDIRS=	/bin/sh ${top_srcdir}/mkinstalldirs
 
 CPPFLAGS+=	-I${top_srcdir} 
 
+UNAME := $(shell uname)
+LIBS= -lMTI
+ifneq ($(UNAME), Darwin)
+	LIBS+= -lrt
+endif
+
 ifeq (${CC},gcc)
 CFLAGS+= 	-Wall
 endif
@@ -53,7 +59,7 @@ all: $(PROG)
 
 $(PROG): $(OBJS)
 	$(LIBTOOL) --mode=link $(CXX) $(LDFLAGS) -o $@ $(OBJS) \
-	-rpath $(LIBDIR) -L../src -lMTI -lrt
+	-rpath $(LIBDIR) -L../src $(LIBS)
 
 %.lo: %.cpp
 	$(LIBTOOL) --mode=compile $(CXX) -c $(CPPFLAGS) $(CFLAGS) $<

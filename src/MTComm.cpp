@@ -2751,17 +2751,20 @@ bool CMTComm::checkChecksum(const unsigned char *msgBuffer, const int msgBufferL
   @param struct timeval timev : affiche le contenu
 */
 void printHorodatage()
-{        
+{
   struct timeval timev;
 
   // obsolete en 2038
   if(gettimeofday(&timev, NULL) !=0)
     {
       perror("gettimeofday");
-    } 
-  	
+    }
+#ifdef __APPLE__
+  printf("%ld %d ", timev.tv_sec, timev.tv_usec);
+#else
   printf("%ld %ld ", timev.tv_sec, timev.tv_usec);
-}	
+#endif
+}
 
 
 
