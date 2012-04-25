@@ -1,5 +1,4 @@
 #include "../MTI/MTI.h"
-#include "../MTI/MTComm.h"
 
 #include <stdlib.h>
 
@@ -72,6 +71,7 @@ int main(int argc, char *argv[])
 			case '?':
 			default:
 				usage(argv[0]);
+				break;
 		} /* switch */
 	}
 
