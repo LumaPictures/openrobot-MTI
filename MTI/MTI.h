@@ -3,7 +3,7 @@
 #define _MTI_INCLUDE
 
 #include "structMTI.h"
-#include "MTComm.h"
+#include "cmt3.h"
 #include "periodicTimestampEstimator.h"
 
 class MTI {
@@ -11,19 +11,15 @@ class MTI {
 		const char * device;
 		int mode;
 		int outputDisplay;
-		int syncOutMode;
-		int syncOutPulsePolarity;
-		int syncOutSkipFactor;
-		int syncOutOffset;
-		int syncOutPulseWidth;
 		int outputSkipFactor;
-		CMTComm mtcomm;
+		CmtSyncOutSettings syncOut;
+		int syncOutPulsePolarity;
+		xsens::Cmt3 mtcomm;
 		bool connected;
 		unsigned long baudrate_enum;
 		unsigned baudrate;
 		double timestamp_delay;
 		PeriodicTimestampEstimator pte;
-		bool emptied_buffers;
 
 		bool _set_mode(OutputMode mode_);
 		bool _set_outputDisplay(OutputFormat outputDisplay_);
@@ -34,12 +30,13 @@ class MTI {
 				  int syncOutPulseWidth_    = 2040); // 69.156us pulse
 		bool _set_outputSkipFactor(int factor);
 		bool _configure_device();
+		XsensResultValue _configure_syncOut();
 		bool _reset();
 
 	public:
-		MTI(const char *dev_, 
-		    OutputMode mode_, 
-		    OutputFormat outputDisplay_, 
+		MTI(const char *dev_,
+		    OutputMode mode_,
+		    OutputFormat outputDisplay_,
 		    SyncOutMode syncOutMode_ = MTI_SYNCOUTMODE_DISABLED);
 		~MTI();
 
@@ -50,16 +47,16 @@ class MTI {
 		bool is_connected() { return connected; };
 
 		bool set_mode(OutputMode mode_);
-		
+
 		bool set_outputDisplay(OutputFormat outputDisplay_);
-		
-		bool set_syncOut(SyncOutMode          syncOutMode_, 
-				 SyncOutPulsePolarity syncOutPulsePolarity_, 
+
+		bool set_syncOut(SyncOutMode          syncOutMode_,
+				 SyncOutPulsePolarity syncOutPulsePolarity_,
 				 int syncOutSkipFactor_,
 				 int syncOutOffset_,
 				 int syncOutPulseWidth_);
 		bool set_outputSkipFactor(int factor);
-				 
+
 		bool read(INERTIAL_DATA * output, bool verbose=false);
 		bool reset();
 };

@@ -34,13 +34,13 @@ LIBTOOL=	@LIBTOOL@
 INSTALL=	@INSTALL@
 MKINSTALLDIRS=	/bin/sh ${top_srcdir}/mkinstalldirs
 
-CPPFLAGS+=	-I${top_srcdir}
+CPPFLAGS+=	-I${top_srcdir} -I${top_srcdir}/MTI
 
 ifeq (${CC},gcc)
 CFLAGS+= 	-Wall -g
 endif
 
-SRCS=		MTComm.cpp MTI.cpp
+SRCS=		cmt1.cpp cmt2.cpp cmt3.cpp cmtmessage.cpp cmtpacket.cpp cmtscan.cpp xsens_exception.cpp  xsens_std.cpp xsens_time.cpp MTI.cpp
 
 OBJS=		$(SRCS:%.cpp=%.lo)
 

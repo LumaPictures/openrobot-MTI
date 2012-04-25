@@ -6,7 +6,7 @@
  * $Source:
  * $Revision: 0.d
  * $Date: 17 August 2009
- * 
+ *
  */
 
 #include "MTI/MTI.h"
@@ -20,6 +20,10 @@
 #	include <mach/clock.h>
 #	include <mach/mach.h>
 #endif
+
+using namespace xsens;
+
+#define reportXsensResultErr(msg, resultObj) { std::cerr << (msg) << " - code " << static_cast<int>((resultObj)) << ": " << xsensResultText((resultObj)) << std::endl; }
 
 static double getHorodatage()
 {
@@ -40,6 +44,8 @@ static double getHorodatage()
 	return ts.tv_sec + ts.tv_nsec*1e-9;
 }
 
+
+
 static std::string convertHorodatageToString(double t)
 {
 	std::ostringstream oss;
@@ -48,16 +54,16 @@ static std::string convertHorodatageToString(double t)
 }
 
 
-MTI::MTI(const char * dev_, 
-	 OutputMode mode_, 
-	 OutputFormat outputDisplay_, 
+MTI::MTI(const char * dev_,
+	 OutputMode mode_,
+	 OutputFormat outputDisplay_,
 	 SyncOutMode syncOutMode_):
 	device(dev_), mode(MTI_OPMODE_CALIBRATED), outputDisplay(MTI_OPFORMAT_EULER), outputSkipFactor(0), mtcomm(), connected(false),
-	pte(10e-3, 6000, 0.0002), emptied_buffers(false)
+	pte(10e-3, 6000, 0.0002)
 {
-	baudrate_enum = PBR_115K2;
+	baudrate_enum = CMT_BAUD_RATE_115K2;
 	baudrate = 115200;
-	
+
 	_set_mode(mode_);
 	_set_outputDisplay(outputDisplay_);
 	_set_syncOut(syncOutMode_);
@@ -74,8 +80,11 @@ MTI::~MTI()
 bool MTI::connect()
 {
 	if (!connected) {
-		if (mtcomm.openPort(device, baudrate_enum) != MTRV_OK) {
-			std::cerr << "MTI: Can't open " << device << std::endl;
+		XsensResultValue result = mtcomm.openPort(device, baudrate_enum);
+		if (result != XRV_OK) {
+			std::ostringstream oss;
+			oss << "MTI: Can't open " << device;
+			reportXsensResultErr(oss.str(), result);
 			return false;
 		} else {
 			std::cerr << "MTI: Open device " << device << std::endl;
@@ -99,7 +108,8 @@ bool MTI::disconnect()
 	if (!connected)
 		return true;
 
-	mtcomm.close();
+	mtcomm.closePort(true);
+	mtcomm.closeLogFile();
 	connected = false;
 	return true;
 }
@@ -140,10 +150,10 @@ bool MTI::_set_outputDisplay(OutputFormat outputDisplay_)
 			std::cout << "MTI: Rotation matrix mode" << std::endl;
 			break;
 	}
-	
+
 	outputDisplay = outputDisplay_;
 
-	outputDisplay |= OUTPUTSETTINGS_TIMESTAMP_SAMPLECNT;
+	outputDisplay |= CMT_OUTPUTSETTINGS_TIMESTAMP_SAMPLECNT;
 	return true;
 }
 
@@ -153,20 +163,17 @@ bool MTI::_set_syncOut( SyncOutMode          syncOutMode_          ,
 			int syncOutOffset_        ,
 			int syncOutPulseWidth_    )
 {
-	syncOutMode = syncOutMode_ | syncOutPulsePolarity_;
-	
-	syncOutSkipFactor = syncOutSkipFactor_;
-	
-	
-	if ((syncOutOffset_ == 0) || (syncOutOffset_ >= 513)) 
-		syncOutOffset = syncOutOffset_;
-	else syncOutOffset = 0;
+	syncOut.m_mode = syncOutMode_ | syncOutPulsePolarity_;
+	syncOut.m_skipFactor = syncOutSkipFactor_;
 
+	if ((syncOutOffset_ == 0) || (syncOutOffset_ >= 513))
+		syncOut.m_offset = syncOutOffset_;
+	else syncOut.m_offset = 0;
 
-	if ((syncOutPulseWidth_ == 0) || (syncOutPulseWidth_ >= 1700)) 
-		syncOutPulseWidth = syncOutPulseWidth_;
-	else syncOutPulseWidth = 2049;
-	
+	if ((syncOutPulseWidth_ == 0) || (syncOutPulseWidth_ >= 1700))
+		syncOut.m_pulseWidth = syncOutPulseWidth_;
+	else syncOut.m_pulseWidth = 2049;
+
 	return true;
 }
 
@@ -182,7 +189,7 @@ bool MTI::set_syncOut(  SyncOutMode syncOutMode_          ,
 			SyncOutPulsePolarity syncOutPulsePolarity_ ,
 			int syncOutSkipFactor_    ,
 			int syncOutOffset_        ,
-			int syncOutPulseWidth_    ) 
+			int syncOutPulseWidth_    )
 {
 	return (_set_syncOut(syncOutMode_,
 			     syncOutPulsePolarity_ ,
@@ -210,86 +217,93 @@ bool MTI::set_outputSkipFactor(int factor)
 
 bool MTI::_configure_device()
 {
-	unsigned long tmpMode, tmpOutputDisplay;
-	unsigned short tmpDataLength;
+	CmtDeviceMode2 tmpMode;
 	unsigned short numDevices;
+	XsensResultValue result;
 
 	if (!connected)
 		return false;
 
 	// Put MTi/MTx in Config State
-	if (mtcomm.writeMessage(MID_GOTOCONFIG) != MTRV_OK) {
-		std::cerr << "Can't put the device in Config / state" << std::endl;
+	result = mtcomm.gotoConfig();
+	if (result != XRV_OK) {
+		reportXsensResultErr("Can't put the device in Config / state", result);
 		return false;
 	}
 
 	// Get current settings and check if Xbus Master is connected
-	if (mtcomm.getDeviceMode(&numDevices) != MTRV_OK)
+	result = mtcomm.refreshCache();
+	numDevices = mtcomm.getDeviceCount();
+	if (result != XRV_OK)
 	{
 		if (numDevices == 1) {
-			std::cerr << "MTI / MTx has not been detected" << std::endl;
+			reportXsensResultErr("Can't put the device in Config / state", result);
 			std::cerr << "Could not get device mode" << std::endl;
 		} else {
 			std::cerr << "Not just MTi / MTx connected to Xbus" << std::endl;
-			std::cerr << "Could not get all devices modes" << std::endl;
+			reportXsensResultErr("Could not get all devices modes", result);
 		}
 
 		return false;
 	}
 
-	// Check if Xbus Master is connected
-	mtcomm.getMode(tmpMode, tmpOutputDisplay, tmpDataLength, BID_MASTER);
-	if (tmpMode == OUTPUTMODE_XM)
+	if (mtcomm.isXm())
 	{
 		// If Xbus Master is connected, attached Motion Trackers should not send sample counter
-		outputDisplay &= 0xFFFFFFFF - OUTPUTSETTINGS_TIMESTAMP_SAMPLECNT;
+		outputDisplay &= 0xFFFFFFFF - CMT_OUTPUTSETTINGS_TIMESTAMP_SAMPLECNT;
 	}
 
 	// Set output mode and output settings for each attached MTi/MTx
-	for (int i = 0; i < numDevices; i++)
+	tmpMode.m_outputMode = mode;
+	tmpMode.m_outputSettings = outputDisplay;
+	tmpMode.m_skip = outputSkipFactor;
+	result = mtcomm.setDeviceMode2(tmpMode, false, CMT_DID_BROADCAST);
+	if(result != XRV_OK)
 	{
-		if (mtcomm.setDeviceMode(mode, outputDisplay, BID_MT + i) != MTRV_OK)
-		{
-			std::cerr << "Could not set (all) device mode(s)" << std::endl;
-			return false;
-		}
+		reportXsensResultErr("Could not set (all) device mode(s)", result);
+		return false;
 	}
-	
-	// Set syncOut Settings for each attached MTi
-	for (int i = 0; i<numDevices; i++)
+
+	// Set syncOut Settings
+	result = _configure_syncOut();
+	if(result != XRV_OK)
 	{
-		if (mtcomm.setDeviceSyncOut(syncOutMode, syncOutSkipFactor, syncOutOffset, syncOutPulseWidth, BID_MT + i) != MTRV_OK)
-		{
-			std::cerr << "Could not set (all) device syncOut setting(s)" << std::endl;
-			return false;
-		}
-	}
-	
-	// Set outputSkipFactor Settings for each attached MTi
-	for (int i = 0; i<numDevices; i++)
-	{
-		if (mtcomm.setSetting(MID_SETOUTPUTSKIPFACTOR, outputSkipFactor, LEN_OUTPUTSKIPFACTOR, BID_MT + i) != MTRV_OK)
-		{
-			std::cerr << "Could not set (all) device outputSkipFactor setting(s)" << std::endl;
-			return false;
-		}
+		reportXsensResultErr("Could not set (all) device syncOut setting(s)", result);
+		return false;
 	}
 
 	// Put MTi/MTx in Measurement State
-	mtcomm.writeMessage(MID_GOTOMEASUREMENT);
+	mtcomm.gotoMeasurement();
 
 	return true;
 }
 
+XsensResultValue MTI::_configure_syncOut()
+{
+	if (mtcomm.isXm())
+	{
+		return mtcomm.setSyncOutSettings(syncOut);
+	}
+	else
+	{
+		XsensResultValue result;
+		// Sadly, cmt3 doesn't include a built in way to set all syncOut settings
+		// for individual MT devices, only for the xbus... so we need to set
+		// all 4
+		mtcomm.setSyncOutMode(syncOut.m_mode);
+		mtcomm.setSyncOutOffset(syncOut.m_offset);
+		mtcomm.setSyncOutPulseWidth(syncOut.m_pulseWidth);
+		mtcomm.setSyncOutSkipFactor(syncOut.m_skipFactor);
+	}
+
+}
 
 bool MTI::read(INERTIAL_DATA * output, bool verbose)
 {
 	if (!connected)
 		return false;
 
-	unsigned char data[MAXMSGLEN];
-	short datalen;
-	float fdata[18] = {0};
+	Packet reply(mtcomm.getDeviceCount(), false);
 
 	std::string msgHorodatage;
 
@@ -299,121 +313,104 @@ bool MTI::read(INERTIAL_DATA * output, bool verbose)
 	// read inertial sensor and get data
 	//
 	///////////////////////////////////////////////////
-	double date, prev_date;
+	double date;
 	int res;
-	if (!emptied_buffers) prev_date = getHorodatage();
-	if((res = mtcomm.readDataMessage(data, datalen)) == MTRV_OK)
+	if((res = mtcomm.waitForDataMessage(&reply)) == XRV_OK)
 	{
 		// get real time clock
 		date = getHorodatage();
 
-		if (!emptied_buffers)
-		{
-			while (true)
-			{
-				if (date-prev_date > 0.002 && res == MTRV_OK) { emptied_buffers = true; break; }
-				prev_date = date;
-				res = mtcomm.readDataMessage(data, datalen);
-				date = getHorodatage();
-			}
-		}
-
 		output->TIMESTAMP_RAW = date;
-		
-		unsigned short samplecounter;
-		mtcomm.getValue(VALUE_SAMPLECNT, samplecounter, data, BID_MASTER);      
 
-		double delay = timestamp_delay + (datalen*8.)/baudrate;
+		uint16_t samplecounter = reply.getSampleCounter();
+
+		double delay = timestamp_delay + reply.m_msg.getTotalMessageSize()/baudrate;
 		date -= delay;
 		output->TIMESTAMP_UNDELAYED = date;
-		
+
 		int nperiods = samplecounter - output->COUNT;
 		if (nperiods < 0) nperiods += 65536;
 		date = pte.estimate(output->TIMESTAMP_RAW, nperiods, delay);
-		
-		output->COUNT = samplecounter;		 
+
+		output->COUNT = samplecounter;
 		output->TIMESTAMP_FILTERED = date;
-		
+
 		output->TIMESTAMP = output->TIMESTAMP_UNDELAYED;
 		msgHorodatage = convertHorodatageToString(output->TIMESTAMP);
-		
+
 		if (verbose)
 			std::cout << msgHorodatage;
-		
-		if ((mode & OUTPUTMODE_CALIB) != 0)
+
+		if (reply.containsCalData())
 		{
-			// ACC		  
-			mtcomm.getValue(VALUE_CALIB_ACC, fdata, data, BID_MT);	
+			CmtVector data;
+
+			// ACC
+			data = reply.getCalAcc();
 			if (verbose)
-				std::cout << "\tACC\t" << fdata[0] << "\t" << fdata[1] << "\t" << fdata[2];
+				std::cout << "\tACC\t" << data.m_data[0] << "\t" << data.m_data[1] << "\t" << data.m_data[2];
 
-			output->ACC[0]=fdata[0];
-			output->ACC[1]=fdata[1];
-			output->ACC[2]=fdata[2];
+			output->ACC[0]=data.m_data[0];
+			output->ACC[1]=data.m_data[1];
+			output->ACC[2]=data.m_data[2];
 
-			// GYR		  		    
-			mtcomm.getValue(VALUE_CALIB_GYR, fdata, data, BID_MT);
+			// GYR
+			data = reply.getCalGyr();
 			if (verbose)
-				std::cout << "\tGYR\t" << fdata[0] << "\t" << fdata[1] << "\t" << fdata[2];
+				std::cout << "\tGYR\t" << data.m_data[0] << "\t" << data.m_data[1] << "\t" << data.m_data[2];
 
-			output->GYR[0]=fdata[0];
-			output->GYR[1]=fdata[1];
-			output->GYR[2]=fdata[2];
+			output->GYR[0]=data.m_data[0];
+			output->GYR[1]=data.m_data[1];
+			output->GYR[2]=data.m_data[2];
 
 			// MAGN
-			mtcomm.getValue(VALUE_CALIB_MAG, fdata, data, BID_MT);	
+			data = reply.getCalMag();
 			if (verbose)
-				std::cout << "\tMAG\t" << fdata[0] << "\t" << fdata[1] << "\t" << fdata[2];
+				std::cout << "\tMAG\t" << data.m_data[0] << "\t" << data.m_data[1] << "\t" << data.m_data[2];
 
-			output->MAG[0]=fdata[0];
-			output->MAG[1]=fdata[1];
-			output->MAG[2]=fdata[2];
+			output->MAG[0]=data.m_data[0];
+			output->MAG[1]=data.m_data[1];
+			output->MAG[2]=data.m_data[2];
 		}//endif
 
-		if ((mode & OUTPUTMODE_ORIENT) != 0)
+		if (reply.containsOri())
 		{
-			switch(outputDisplay & OUTPUTSETTINGS_ORIENTMODE_MASK)
+			if (reply.containsOriQuat())
 			{
-				case OUTPUTSETTINGS_ORIENTMODE_QUATERNION:
-					// Output: quaternion
-					mtcomm.getValue(VALUE_ORIENT_QUAT, fdata, data, BID_MT);
-					if (verbose)
-						std::cout << "\tQUAT\t" << fdata[0] << "\t" << fdata[1] << "\t" << fdata[2] << "\t" << fdata[3];
-					break;
+				// Output: quaternion
+				CmtQuat quat = reply.getOriQuat();
+				if (verbose)
+					std::cout << "\tQUAT\t" << quat.m_data[0] << "\t" << quat.m_data[1] << "\t" << quat.m_data[2] << "\t" << quat.m_data[3];
+			}
+			if (reply.containsOriEuler())
+			{
+				CmtEuler euler = reply.getOriEuler();
+				if (verbose)
+					std::cout << "\tEUL\t" << euler.m_roll << "\t" << euler.m_pitch << "\t" << euler.m_yaw;
 
-				case OUTPUTSETTINGS_ORIENTMODE_EULER:
-					// Output: Euler
-					msgHorodatage = getHorodatage();
- 					mtcomm.getValue(VALUE_ORIENT_EULER, fdata, data, BID_MT);	
-					if (verbose)
-						std::cout << "\tEUL\t" << fdata[0] << "\t" << fdata[1] << "\t" << fdata[2];
+				// lien avec le poster de GENOM
+				output->EULER[0]=euler.m_roll;
+				output->EULER[1]=euler.m_pitch;
+				output->EULER[2]=euler.m_yaw;
 
-					// lien avec le poster de GENOM
-					output->EULER[0]=fdata[0];
-					output->EULER[1]=fdata[1];
-					output->EULER[2]=fdata[2];
-					break;
-
-				case OUTPUTSETTINGS_ORIENTMODE_MATRIX:
-					// Output: Cosine Matrix
-					mtcomm.getValue(VALUE_ORIENT_MATRIX, fdata, data, BID_MT);
-					if (verbose) {
-						std::cout << "\tMAT\t" << fdata[0] << "\t" << fdata[1] << "\t" << fdata[2]
-							<< "\t" << fdata[3] << "\t" << fdata[4] << "\t" << fdata[5]
-							<< "\t" << fdata[6] << "\t" << fdata[7] << "\t" << fdata[8];
-					}
-					break;
-
-				default:
-					;
-			}// end switch
-		} // endif	
+			}
+			if (reply.containsOriMatrix())
+			{
+				CmtMatrix matrix = reply.getOriMatrix();
+				if (verbose) {
+					std::cout << "\tMAT\t" << matrix.m_data[0][0] << "\t" << matrix.m_data[0][1] << "\t" << matrix.m_data[0][2]
+						<< "\t" << matrix.m_data[1][0] << "\t" << matrix.m_data[1][1] << "\t" << matrix.m_data[1][2]
+						<< "\t" << matrix.m_data[2][0] << "\t" << matrix.m_data[2][1] << "\t" << matrix.m_data[2][2];
+				}
+			}
+		} // endif
 		if (verbose)
 			std::cout << std::endl;
 	} //endif check read data
 	else // display error on read buffer
 	{
-		std::cerr << "MTI failed to read message, code " <<  mtcomm.getLastRetVal() << std::endl;
+		XsensResultValue result = mtcomm.getLastResult();
+		reportXsensResultErr("MTI failed to read message", result);
 		return false;
 	}
 
@@ -423,9 +420,9 @@ bool MTI::read(INERTIAL_DATA * output, bool verbose)
 bool MTI::_reset() {
 	if (!connected)
 		return false;
-	if (mtcomm.writeMessage(MID_RESET) != MTRV_OK) 
+	if (mtcomm.reset() != XRV_OK)
 		return false;
-	
+
 	return true;
 }
 
@@ -446,13 +443,13 @@ bool MTI::_configure_baudRate()
 		return false;
 
 	// Put MTi/MTx in Config State
-	if (mtcomm.writeMessage(MID_GOTOCONFIG) != MTRV_OK) {
+	if (mtcomm.writeMessage(MID_GOTOCONFIG) != XRV_OK) {
 		std::cerr << "Can't put the device in Config / state" << std::endl;
 		return false;
 	}
 
 	// Get current settings and check if Xbus Master is connected
-	if (mtcomm.getDeviceMode(&numDevices) != MTRV_OK)
+	if (mtcomm.getDeviceMode(&numDevices) != XRV_OK)
 	{
 		if (numDevices == 1) {
 			std::cerr << "MTI / MTx has not been detected" << std::endl;
@@ -466,18 +463,18 @@ bool MTI::_configure_baudRate()
 	}
 
 	// send baud rate
-	if (mtcomm.setSetting(MID_SETBAUDRATE, baudRateMti, LEN_BAUDRATE, BID_MT) != MTRV_OK)
+	if (mtcomm.setSetting(MID_SETBAUDRATE, baudRateMti, LEN_BAUDRATE, BID_MT) != XRV_OK)
 	{
 	} else {
-	}	
-	
+	}
+
 	// send reset signal
 
 	// Put MTi/MTx in Measurement State
 	mtcomm.writeMessage(MID_GOTOMEASUREMENT);
 
 	return true;
-	
+
 }*/
 
 /*bool MTI::_get_baudRateCodes(int baudRate00_)

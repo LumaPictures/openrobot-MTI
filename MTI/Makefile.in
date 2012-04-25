@@ -26,7 +26,7 @@ INSTALL=	@INSTALL@
 INSTALL_DATA=	$(INSTALL) -m 644
 MKINSTALLDIRS=	/bin/sh $(top_srcdir)/mkinstalldirs
 
-files=MTComm.h MTI.h structMTI.h periodicTimestampEstimator.h
+files=cmt1.h cmt2.h cmt3.h cmtdef.h cmtmessage.h cmtpacket.h cmtscan.h pstdint.h xsens_exception.h xsens_fifoqueue.h xsens_file.h xsens_janitors.h xsens_list.h xsens_std.h xsens_time.h MTI.h structMTI.h periodicTimestampEstimator.h
 
 
 all clean depend:
