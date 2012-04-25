@@ -299,6 +299,6 @@ public:
 	void insertData(uint16_t size, uint16_t offset = 0);
 };
 
-}; // end of xsens namespace
+} // end of xsens namespace
 
 #endif	// CMTMESSAGE_H
