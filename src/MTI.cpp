@@ -69,6 +69,11 @@ MTI::MTI(const char * dev_,
 	_set_syncOut(syncOutMode_);
 	connect();
 	_configure_device();
+
+	// old version of mtsdk didn't have separate measurement / default timeout;
+	// so for backward compatibility, set the measurement timeout to set the
+	// global timeout
+	mtcomm.setTimeoutMeasurement(CMT_TO_DEFAULT);
 }
 
 MTI::~MTI()
