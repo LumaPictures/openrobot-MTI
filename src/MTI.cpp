@@ -415,7 +415,10 @@ bool MTI::read(INERTIAL_DATA * output, bool verbose)
 	else // display error on read buffer
 	{
 		XsensResultValue result = mtcomm.getLastResult();
-		reportXsensResultErr("MTI failed to read message", result);
+		if (result != XRV_TIMEOUTNODATA or verbose)
+		{
+			reportXsensResultErr("MTI failed to read message", result);
+		}
 		return false;
 	}
 
